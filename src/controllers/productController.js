@@ -155,7 +155,6 @@ const getProdyctById = async (req, res) => {
         const product = await prisma.product.findFirst({
             where : {id: parseInt(productId)},
         });
-        console.log(product);
         
         if(!product){
             res.status(404).json({message : "Product not found."});
