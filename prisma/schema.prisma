@@ -18,8 +18,10 @@ model User {
   name            String
   email           String           @unique
   password        String
+  googleId        String?          @unique
   address         String
   phone           String?
+  profilePicture  String?
   wishlist        Wishlist?
   cart            Cart?
   orders          Order[]
@@ -38,7 +40,7 @@ model Product {
   discountPercentage Float?
   rating             Float?
   stock              Int
-  categoryId         Int @default(1)
+  categoryId         Int                      @default(1)
   category           Category                 @relation(fields: [categoryId], references: [id])
   subCategoryId      Int
   subCategory        SubCategory              @relation(fields: [subCategoryId], references: [id])
