@@ -14,59 +14,62 @@ datasource db {
 }
 
 model User {
-  id             Int             @id @default(autoincrement())
-  name           String
-  email          String          @unique
-  password       String
-  address        String
-  phone          String?
-  wishlist       Wishlist?
-  cart           Cart?
-  orders         Order[]
+  id              Int              @id @default(autoincrement())
+  name            String
+  email           String           @unique
+  password        String
+  address         String
+  phone           String?
+  wishlist        Wishlist?
+  cart            Cart?
+  orders          Order[]
   recommendations Recommendation[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Product {
-  id                Int              @id @default(autoincrement())
-  name              String
-  description       String
-  actualPrice       Float       
-  offerPrice        Float           
-  discountPercentage Float?          
-  rating            Float?         
-  stock             Int
-  subCategoryId     Int
-  subCategory       SubCategory      @relation(fields: [subCategoryId], references: [id])
-  wishlistItems     WishlistProduct[]
-  cartItems         CartItem[]
-  orderedItems      OrderedItem[]
-  recommendation    RecommendationsProduct[]
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime?         @updatedAt
+  id                 Int                      @id @default(autoincrement())
+  name               String
+  description        String
+  actualPrice        Float
+  brand              String
+  offerPrice         Float
+  discountPercentage Float?
+  rating             Float?
+  stock              Int
+  categoryId         Int @default(1)
+  category           Category                 @relation(fields: [categoryId], references: [id])
+  subCategoryId      Int
+  subCategory        SubCategory              @relation(fields: [subCategoryId], references: [id])
+  wishlistItems      WishlistProduct[]
+  cartItems          CartItem[]
+  orderedItems       OrderedItem[]
+  recommendation     RecommendationsProduct[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime?                @updatedAt
 }
 
 model Category {
-  id          Int          @id @default(autoincrement())
-  name        String       @unique
-  description String?
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  description   String?
+  products      Product[]
   subCategories SubCategory[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @default(now()) @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
 }
 
 model SubCategory {
-  id          Int          @id @default(autoincrement())
-  name        String      
+  id          Int       @id @default(autoincrement())
+  name        String
   description String?
   categoryId  Int
-  category    Category      @relation(fields: [categoryId], references: [id])
+  category    Category  @relation(fields: [categoryId], references: [id])
   products    Product[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @default(now()) @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
 }
-
 
 model Wishlist {
   id        Int               @id @default(autoincrement())
@@ -78,66 +81,65 @@ model Wishlist {
 }
 
 model WishlistProduct {
-  id         Int       @id @default(autoincrement())
-  wishlist   Wishlist   @relation(fields: [wishlistId], references: [id])
+  id         Int      @id @default(autoincrement())
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
   wishlistId Int
-  product    Product    @relation(fields: [productId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
   productId  Int
 }
 
 model Cart {
-  id        Int          @id @default(autoincrement())
-  user      User         @relation(fields: [userId], references: [id])
-  userId    Int          @unique
+  id        Int        @id @default(autoincrement())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    Int        @unique
   items     CartItem[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model CartItem {
-  id        Int       @id @default(autoincrement())
-  cart      Cart      @relation(fields: [cartId], references: [id])
+  id        Int     @id @default(autoincrement())
+  cart      Cart    @relation(fields: [cartId], references: [id])
   cartId    Int
-  product   Product   @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
   productId Int
-  quantity  Int       @default(1)
+  quantity  Int     @default(1)
 }
 
 model Order {
-  id         Int          @id @default(autoincrement())
-  user       User         @relation(fields: [userId], references: [id])
-  userId     Int
-  items      OrderedItem[]
-  status     String
+  id          Int           @id @default(autoincrement())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      Int
+  items       OrderedItem[]
+  status      String
   totalAmount Float
-  orderDate  DateTime      @default(now())
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  orderDate   DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model OrderedItem {
-  id        Int       @id @default(autoincrement())
-  order     Order     @relation(fields: [orderId], references: [id])
+  id        Int     @id @default(autoincrement())
+  order     Order   @relation(fields: [orderId], references: [id])
   orderId   Int
-  product   Product   @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
   productId Int
-  quantity  Int       @default(1)
+  quantity  Int     @default(1)
 }
 
 model Recommendation {
-  id         Int        @id @default(autoincrement())
-  user       User       @relation(fields: [userId], references: [id])
-  userId     Int
-  products   RecommendationsProduct[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id        Int                      @id @default(autoincrement())
+  user      User                     @relation(fields: [userId], references: [id])
+  userId    Int
+  products  RecommendationsProduct[]
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
 }
 
 model RecommendationsProduct {
-  id            Int           @id @default(autoincrement())
-  recommendation Recommendation @relation(fields: [recommendationId], references: [id])
+  id               Int            @id @default(autoincrement())
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id])
   recommendationId Int
-  product       Product       @relation(fields: [productId], references: [id])
-  productId     Int
+  product          Product        @relation(fields: [productId], references: [id])
+  productId        Int
 }
-
