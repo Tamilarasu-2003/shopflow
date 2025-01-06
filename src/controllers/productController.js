@@ -8,7 +8,20 @@ const {parseQuery} = require("../utils/searchResolve");
 
 const getAllProducts = async (req, res) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const pageInt = parseInt(page, 10);
+    const limitInt = parseInt(limit, 10);
+
+    const offset = (pageInt - 1) * limitInt;
+
+    const totalProducts = await prisma.product.count();
+
+    const totalPages = Math.ceil(totalProducts / limitInt);
+
     const allProducts = await prisma.product.findMany({
+      skip: offset,
+      take: limitInt,
       include: { subCategory: true },
     });
     
@@ -16,6 +29,8 @@ const getAllProducts = async (req, res) => {
     res.status(200).json({
       message: "Success",
       data: allProducts,
+      totalPages,
+      
     });
   } catch (error) {
     console.error(error.message);
@@ -48,8 +63,13 @@ const getFlashDealProducts = async (req, res) => {
 
 const getFilteredProducts = async (req, res) => {
   try {
-    const { categoryName, subCategoryNames, minPrice, maxPrice, sort } =
+    const { categoryName, subCategoryNames, minPrice, maxPrice, sort ,page = 1, limit = 10} =
       req.query;
+
+      const pageInt = parseInt(page, 10);
+    const limitInt = parseInt(limit, 10);
+
+    const offset = (pageInt - 1) * limitInt;
 
     let filter = {};
 
@@ -83,6 +103,8 @@ const getFilteredProducts = async (req, res) => {
     }
 
     const products = await prisma.product.findMany({
+        skip: offset,
+      take: limitInt,
       where: filter,
       orderBy: sort
         ? { actualPrice: sort === "low to high" ? "asc" : "desc" }
@@ -112,137 +134,116 @@ const searchProducts = async (req, res) => {
     try {
       const {
         query,
+        brand,
         category,
+        subCategory,
         minPrice,
         maxPrice,
-        attributes,
-        brand,
         page = 1,
         size = 10,
       } = req.query;
   
-      const parsedQuery = await parseQuery(query);
-      console.log(parsedQuery);
+      if (!query) {
+        return res.status(400).json({ message: "Search query is required" });
+      }
   
-      // Step 1: Search by product name
-      let searchQuery = {
-        index: 'products',
-        body: {
-          from: (page - 1) * size,
-          size: parseInt(size),
-          query: {
-            bool: {
-              must: [
-                {
-                  match: {
-                    'name': {
-                      query: query,
-                      boost: 5,
-                      fuzziness: 'AUTO',
-                    }
-                  }
-                }
-              ],
-              filter: [
-                ...(parsedQuery.minPrice ? [{ range: { offerPrice: { gte: parsedQuery.minPrice } } }] : []),
-                ...(parsedQuery.maxPrice ? [{ range: { offerPrice: { lte: parsedQuery.maxPrice } } }] : []),
-              ],
-            }
-          }
-        }
+      const parsedQuery = await parseQuery(query);
+      console.log("Parsed Query:", parsedQuery);
+  
+      const offset = (page - 1) * size;
+  
+      // Construct the Elasticsearch query
+      const searchBody = {
+        from: offset,
+        size: parseInt(size),
+        query: {
+          bool: {
+            should: [
+              {
+                match: {
+                  name: {
+                    query: query,
+                    boost: 5,
+                    fuzziness: "AUTO",
+                  },
+                },
+              },
+              ...(parsedQuery.brand
+                ? [
+                    {
+                      match: {
+                        brand: {
+                          query: parsedQuery.brand,
+                          boost: 4,
+                          fuzziness: "AUTO",
+                        },
+                      },
+                    },
+                  ]
+                : []),
+              ...(parsedQuery.category
+                ? [
+                    {
+                      match: {
+                        category: {
+                          query: parsedQuery.category,
+                          boost: 3,
+                          fuzziness: "AUTO",
+                        },
+                      },
+                    },
+                  ]
+                : []),
+              ...(parsedQuery.subCategory
+                ? [
+                    {
+                      match: {
+                        subCategory: {
+                          query: parsedQuery.subCategory,
+                          boost: 2,
+                          fuzziness: "AUTO",
+                        },
+                      },
+                    },
+                  ]
+                : []),
+              {
+                query_string: {
+                  query: `*${query}*`,
+                  fields: ["name", "brand", "description", "category", "subCategory"],
+                  boost: 0.5,
+                },
+              },
+            ],
+            minimum_should_match: 1,
+            filter: [
+              ...(parsedQuery.minPrice
+                ? [{ range: { offerPrice: { gte: parsedQuery.minPrice } } }]
+                : []),
+              ...(parsedQuery.maxPrice
+                ? [{ range: { offerPrice: { lte: parsedQuery.maxPrice } } }]
+                : []),
+            ],
+          },
+        },
       };
   
-      let  body  = await elasticClient.search(searchQuery);
-      let products = body.hits.hits;
+      console.log("Elasticsearch Query:", JSON.stringify(searchBody, null, 2));
   
-      // If no products are found by name, search by brand and apply price filter
-      if (products.length === 0 && brand) {
-        searchQuery = {
-          index: 'products',
-          body: {
-            from: (page - 1) * size,
-            size: parseInt(size),
-            query: {
-              bool: {
-                should: [
-                  {
-                    match: {
-                      'brand': {
-                        query: brand,
-                        boost: 4,
-                        fuzziness: 'AUTO',
-                      }
-                    }
-                  }
-                ],
-                filter: [
-                  ...(minPrice ? [{ range: { price: { gte: minPrice } } }] : []),
-                  ...(maxPrice ? [{ range: { price: { lte: maxPrice } } }] : []),
-                ]
-              }
-            }
-          }
-        };
-  
-        // Fetch products by brand
-        body = await elasticClient.search(searchQuery);
-        products = body.hits.hits;
-      }
-  
-      // Step 2: If products are found, filter by the first product's brand, category, and subcategory
-      if (products.length > 0) {
-        const firstProduct = products[0]._source;
-  
-        // Extract the brand, category, and subCategory from the first product
-        const foundBrand = firstProduct.brand;
-        const foundCategory = firstProduct.category;
-        const foundSubCategory = firstProduct.subCategory;
-  
-        // Step 3: Search using the first product's brand, category, and subcategory
-        searchQuery = {
-          index: 'products',
-          body: {
-            from: (page - 1) * size,
-            size: parseInt(size),
-            query: {
-              bool: {
-                must: [
-                  {
-                    match: {
-                      'name': {
-                        query: query,
-                        boost: 5,
-                        fuzziness: 'AUTO',
-                      }
-                    }
-                  }
-                ],
-                filter: [
-                  ...(brand ? [{ term: { brand: foundBrand.toLowerCase() } }] : []),
-                  ...(category ? [{ term: { category: foundCategory.toLowerCase() } }] : []),
-                  ...(subCategory ? [{ term: { subCategory: foundSubCategory.toLowerCase() } }] : []),
-                  ...(minPrice ? [{ range: { price: { gte: minPrice } } }] : []),
-                  ...(maxPrice ? [{ range: { price: { lte: maxPrice } } }] : []),
-                ]
-              }
-            }
-          }
-        };
-  
-        // Perform the final search with refined filters
-        body = await elasticClient.search(searchQuery);
-        products = body.hits.hits;
-      }
-  
-      // Return the final products and total count
-      res.json({
-        products: products.map(hit => ({
-          id: hit._id,
-          ...hit._source,
-        })),
-        totalCount: body.hits.total.value || 0,
+      const body = await elasticClient.search({
+        index: "products",
+        body: searchBody,
       });
   
+      const products = body.hits.hits.map((hit) => ({
+        id: hit._id,
+        ...hit._source,
+      }));
+  
+      res.json({
+        data : products,
+        totalCount: body.hits.total.value || 0,
+      });
     } catch (error) {
       console.error("Error fetching products from Elasticsearch:", error);
       res.status(500).send("Server error");
