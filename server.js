@@ -5,6 +5,7 @@ const session = require("express-session");
 const passport = require("./src/middlewares/authMiddleware");
 const productRoute = require('./src/routes/productRoute');
 const authRoutes = require("./src/routes/authRoute");
+const userRoute = require("./src/routes/userRoute");
 const cors = require('cors');
 
 const app = express();
@@ -26,7 +27,7 @@ app.use(
   app.use(passport.initialize());
   app.use(passport.session());
 
-app.use(cors(corsOptions));
+app.use(cors());
 
 app.get('/', (req,res) => {
     res.send('<a href="/auth/google">Authenticate with google</a>')
@@ -34,6 +35,7 @@ app.get('/', (req,res) => {
 
 app.use('/products',productRoute);
 app.use("/auth", authRoutes);
+app.use("/user", userRoute);
 
 
 app.listen(5000, () => {

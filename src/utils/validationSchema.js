@@ -48,7 +48,7 @@ const signup = Joi.object({
         }),
 
     phone: Joi.string()
-        .pattern(/^\+?[1-9]\d{1,14}$/) 
+        .pattern(/^\+?[1-9]\d{1,10}$/) 
         .optional()
         .messages({
             'string.base': 'Phone should be a type of string',

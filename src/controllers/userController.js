@@ -2,7 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const hash = require('../utils/hashPassword');
-const jwtToken = require('../utils/jwtauth');
+const jwtToken = require('../utils/jwtAuth');
 
 const {sendResponse} = require('../utils/responseHandler');
 
@@ -59,6 +59,8 @@ const signup = async (req, res) => {
 
 const login = async (req, res) => {
     try{
+        
+        
         const {email, password} = req.body;
 
         const existingUser = await prisma.user.findUnique({
@@ -66,6 +68,7 @@ const login = async (req, res) => {
               email: email,
             }
         });
+        
 
         if(!existingUser){
             return sendResponse(res, {
@@ -88,11 +91,12 @@ const login = async (req, res) => {
         let token = await jwtToken.createToken({
             id:existingUser.id,
             name:existingUser.name,
-            email:existingUser.email,
-            role:existingUser.role,
+            email:existingUser.email
         });
 
+
         const { password: _, ...userWithoutPassword } = existingUser;
+        
         
 
         sendResponse(res, {
@@ -100,7 +104,7 @@ const login = async (req, res) => {
             type: 'success',
             message: 'Login successful',
             data: {
-                user: userWithoutPassword,
+                user: existingUser,
                 token: token,
             },
         });
