@@ -4,7 +4,8 @@ const prisma = new PrismaClient();
 const { Client } = require("@elastic/elasticsearch");
 const elasticClient = new Client({ node: process.env.ELASTICSEARCH_HOST });
 
-const {parseQuery} = require("../utils/searchResolve");
+const { parseQuery } = require("../utils/searchResolve");
+const { sendResponse } = require("../utils/responseHandler");
 
 const getAllProducts = async (req, res) => {
   try {
@@ -24,19 +25,25 @@ const getAllProducts = async (req, res) => {
       take: limitInt,
       include: { subCategory: true },
     });
-    
 
-    res.status(200).json({
+    sendResponse(res, {
+      status: 200,
+      type: "success",
       message: "Success",
-      data: allProducts,
-      totalPages,
-      
+      data: {
+        products: allProducts,
+        totalPages: totalPages,
+      },
     });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({
-      message: "Internal server Error",
-      error: error.message,
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      data: {
+        error: error.message,
+      },
     });
   }
 };
@@ -49,13 +56,25 @@ const getFlashDealProducts = async (req, res) => {
       take: 5,
     });
     if (!products) {
-      res.status(404).json({ message: "flash deal product not found." });
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "Flash deal product not found.",
+        data: null,
+      });
     }
-    res.status(200).json({ message: "Success", data: products });
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Success",
+      data: products,
+    });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({
-      message: "Internal server Error",
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
       error: error.message,
     });
   }
@@ -63,10 +82,17 @@ const getFlashDealProducts = async (req, res) => {
 
 const getFilteredProducts = async (req, res) => {
   try {
-    const { categoryName, subCategoryNames, minPrice, maxPrice, sort ,page = 1, limit = 10} =
-      req.query;
+    const {
+      categoryName,
+      subCategoryNames,
+      minPrice,
+      maxPrice,
+      sort,
+      page = 1,
+      limit = 10,
+    } = req.query;
 
-      const pageInt = parseInt(page, 10);
+    const pageInt = parseInt(page, 10);
     const limitInt = parseInt(limit, 10);
 
     const offset = (pageInt - 1) * limitInt;
@@ -103,7 +129,7 @@ const getFilteredProducts = async (req, res) => {
     }
 
     const products = await prisma.product.findMany({
-        skip: offset,
+      skip: offset,
       take: limitInt,
       where: filter,
       orderBy: sort
@@ -113,17 +139,27 @@ const getFilteredProducts = async (req, res) => {
     });
 
     if (!products.length) {
-      return res
-        .status(404)
-        .json({ message: "No products found matching the filters." });
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "No products found matching the filters.",
+      });
     }
 
-    res
-      .status(200)
-      .json({ message: "Success", data: products, length: products.length });
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Success",
+      data: {
+        products,
+        length: products.length,
+      },
+    });
   } catch (error) {
     console.error("Error fetching products:", error.message);
-    res.status(500).json({
+    sendResponse(res, {
+      status: 500,
+      type: "error",
       message: "Internal Server Error",
       error: error.message,
     });
@@ -131,126 +167,141 @@ const getFilteredProducts = async (req, res) => {
 };
 
 const searchProducts = async (req, res) => {
-    try {
-      const {
-        query,
-        brand,
-        category,
-        subCategory,
-        minPrice,
-        maxPrice,
-        page = 1,
-        size = 10,
-      } = req.query;
-  
-      if (!query) {
-        return res.status(400).json({ message: "Search query is required" });
-      }
-  
-      const parsedQuery = await parseQuery(query);
-      console.log("Parsed Query:", parsedQuery);
-  
-      const offset = (page - 1) * size;
-  
-      // Construct the Elasticsearch query
-      const searchBody = {
-        from: offset,
-        size: parseInt(size),
-        query: {
-          bool: {
-            should: [
-              {
-                match: {
-                  name: {
-                    query: query,
-                    boost: 5,
-                    fuzziness: "AUTO",
-                  },
-                },
-              },
-              ...(parsedQuery.brand
-                ? [
-                    {
-                      match: {
-                        brand: {
-                          query: parsedQuery.brand,
-                          boost: 4,
-                          fuzziness: "AUTO",
-                        },
-                      },
-                    },
-                  ]
-                : []),
-              ...(parsedQuery.category
-                ? [
-                    {
-                      match: {
-                        category: {
-                          query: parsedQuery.category,
-                          boost: 3,
-                          fuzziness: "AUTO",
-                        },
-                      },
-                    },
-                  ]
-                : []),
-              ...(parsedQuery.subCategory
-                ? [
-                    {
-                      match: {
-                        subCategory: {
-                          query: parsedQuery.subCategory,
-                          boost: 2,
-                          fuzziness: "AUTO",
-                        },
-                      },
-                    },
-                  ]
-                : []),
-              {
-                query_string: {
-                  query: `*${query}*`,
-                  fields: ["name", "brand", "description", "category", "subCategory"],
-                  boost: 0.5,
-                },
-              },
-            ],
-            minimum_should_match: 1,
-            filter: [
-              ...(parsedQuery.minPrice
-                ? [{ range: { offerPrice: { gte: parsedQuery.minPrice } } }]
-                : []),
-              ...(parsedQuery.maxPrice
-                ? [{ range: { offerPrice: { lte: parsedQuery.maxPrice } } }]
-                : []),
-            ],
-          },
-        },
-      };
-  
-      console.log("Elasticsearch Query:", JSON.stringify(searchBody, null, 2));
-  
-      const body = await elasticClient.search({
-        index: "products",
-        body: searchBody,
+  try {
+    const {
+      query,
+      brand,
+      category,
+      subCategory,
+      minPrice,
+      maxPrice,
+      page = 1,
+      size = 10,
+    } = req.query;
+
+    if (!query) {
+      return sendResponse(res, {
+        status: 400,
+        type: "error",
+        message: "Search query is required",
       });
-  
-      const products = body.hits.hits.map((hit) => ({
-        id: hit._id,
-        ...hit._source,
-      }));
-  
-      res.json({
-        data : products,
-        totalCount: body.hits.total.value || 0,
-      });
-    } catch (error) {
-      console.error("Error fetching products from Elasticsearch:", error);
-      res.status(500).send("Server error");
     }
-  };
-  
-  
+
+    const parsedQuery = await parseQuery(query);
+    console.log("Parsed Query:", parsedQuery);
+
+    const offset = (page - 1) * size;
+
+    // Construct the Elasticsearch query
+    const searchBody = {
+      from: offset,
+      size: parseInt(size),
+      query: {
+        bool: {
+          should: [
+            {
+              match: {
+                name: {
+                  query: query,
+                  boost: 5,
+                  fuzziness: "AUTO",
+                },
+              },
+            },
+            ...(parsedQuery.brand
+              ? [
+                  {
+                    match: {
+                      brand: {
+                        query: parsedQuery.brand,
+                        boost: 4,
+                        fuzziness: "AUTO",
+                      },
+                    },
+                  },
+                ]
+              : []),
+            ...(parsedQuery.category
+              ? [
+                  {
+                    match: {
+                      category: {
+                        query: parsedQuery.category,
+                        boost: 3,
+                        fuzziness: "AUTO",
+                      },
+                    },
+                  },
+                ]
+              : []),
+            ...(parsedQuery.subCategory
+              ? [
+                  {
+                    match: {
+                      subCategory: {
+                        query: parsedQuery.subCategory,
+                        boost: 2,
+                        fuzziness: "AUTO",
+                      },
+                    },
+                  },
+                ]
+              : []),
+            {
+              query_string: {
+                query: `*${query}*`,
+                fields: [
+                  "name",
+                  "brand",
+                  "description",
+                  "category",
+                  "subCategory",
+                ],
+                boost: 0.5,
+              },
+            },
+          ],
+          minimum_should_match: 1,
+          filter: [
+            ...(parsedQuery.minPrice
+              ? [{ range: { offerPrice: { gte: parsedQuery.minPrice } } }]
+              : []),
+            ...(parsedQuery.maxPrice
+              ? [{ range: { offerPrice: { lte: parsedQuery.maxPrice } } }]
+              : []),
+          ],
+        },
+      },
+    };
+
+    console.log("Elasticsearch Query:", JSON.stringify(searchBody, null, 2));
+
+    const body = await elasticClient.search({
+      index: "products",
+      body: searchBody,
+    });
+
+    const products = body.hits.hits.map((hit) => ({
+      id: hit._id,
+      ...hit._source,
+    }));
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Products fetched successfully",
+      data: products,
+      totalCount: body.hits.total.value || 0,
+    });
+  } catch (error) {
+    console.error("Error fetching products from Elasticsearch:", error);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Server error",
+    });
+  }
+};
 
 const getCategory = async (req, res) => {
   try {
@@ -267,14 +318,18 @@ const getCategory = async (req, res) => {
       },
     });
 
-    res.status(200).json({
+    sendResponse(res, {
+      status: 200,
+      type: "success",
       message: "Success",
       data: categories,
     });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({
-      message: "Internal server Error",
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
       error: error.message,
     });
   }
@@ -291,13 +346,17 @@ const getSubCategory = async (req, res) => {
     });
     // const subCategoryNames = categories.flatMap(category => category.subCategories.map(subCategory => subCategory.name));
 
-    res.status(200).json({
+    sendResponse(res, {
+      status: 200,
+      type: "success",
       message: "Success",
       data: subCategories,
     });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({
+    sendResponse(res, {
+      status: 500,
+      type: "error",
       message: "Internal Server Error",
       error: error.message,
     });
@@ -308,19 +367,36 @@ const getProdyctById = async (req, res) => {
   try {
     const { productId } = req.query;
     if (!productId || isNaN(productId)) {
-      return res.status(400).json({ message: "Invalid or missing productId." });
+      return sendResponse(res, {
+        status: 400,
+        type: "error",
+        message: "Invalid or missing productId.",
+      });
     }
     const product = await prisma.product.findFirst({
       where: { id: parseInt(productId) },
     });
 
     if (!product) {
-      res.status(404).json({ message: "Product not found." });
+      sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "Product not found.",
+      });
     }
-    res.status(200).json({ message: "Success", data: product });
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Product retrieved successfully.",
+      data: product,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error!." });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error!",
+    });
   }
 };
 
@@ -328,9 +404,11 @@ const getProductsByCategory = async (req, res) => {
   try {
     const { subCategoryId } = req.query;
     if (!subCategoryId || isNaN(subCategoryId)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid or missing subCategoryId." });
+      sendResponse(res, {
+        status: 400,
+        type: "error",
+        message: "Invalid or missing subCategoryId.",
+      });
     }
     const Products = await prisma.product.findMany({
       where: { subCategoryId: parseInt(subCategoryId) },
@@ -346,12 +424,25 @@ const getProductsByCategory = async (req, res) => {
       },
     });
     if (!Products) {
-      res.status(404).json({ message: "No Products Found." });
+      sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "No Products Found.",
+      });
     }
-    res.status(200).json({ message: "success", data: Products });
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Success",
+      data: Products,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error!." });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error!",
+    });
   }
 };
 
