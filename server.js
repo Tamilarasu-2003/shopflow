@@ -2,9 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const session = require("express-session");
-const passport = require("./src/middlewares/authMiddleware");
 const productRoute = require('./src/routes/productRoute');
-const authRoutes = require("./src/routes/authRoute");
 const userRoute = require("./src/routes/userRoute");
 const cors = require('cors');
 
@@ -17,24 +15,14 @@ const corsOptions = {
   };
 
 app.use(express.json());
-app.use(
-    session({
-      secret: process.env.SESSION_SECRET,
-      resave: false,
-      saveUninitialized: false,
-    })
-  );
-  app.use(passport.initialize());
-  app.use(passport.session());
 
 app.use(cors());
 
 app.get('/', (req,res) => {
-    res.send('<a href="/auth/google">Authenticate with google</a>')
+    res.send('hello....!')
 })
 
 app.use('/products',productRoute);
-app.use("/auth", authRoutes);
 app.use("/user", userRoute);
 
 

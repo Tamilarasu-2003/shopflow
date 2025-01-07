@@ -59,8 +59,6 @@ const signup = async (req, res) => {
 
 const login = async (req, res) => {
     try{
-        
-        
         const {email, password} = req.body;
 
         const existingUser = await prisma.user.findUnique({
@@ -104,7 +102,7 @@ const login = async (req, res) => {
             type: 'success',
             message: 'Login successful',
             data: {
-                user: existingUser,
+                user: userWithoutPassword,
                 token: token,
             },
         });

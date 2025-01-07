@@ -39,7 +39,7 @@ const signup = Joi.object({
     address: Joi.string()
         .min(5)
         .max(100)
-        .required()
+        .optional()
         .messages({
             'string.base': 'Address should be a type of string',
             'string.min': 'Address should have a minimum length of 5 characters',
