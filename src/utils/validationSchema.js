@@ -48,7 +48,7 @@ const signup = Joi.object({
         }),
 
     phone: Joi.string()
-        .pattern(/^\+?[1-9]\d{1,14}$/) // Matches international phone numbers
+        .pattern(/^\+?[1-9]\d{1,14}$/) 
         .optional()
         .messages({
             'string.base': 'Phone should be a type of string',
