@@ -96,10 +96,8 @@ const login = async (req, res) => {
       status: 200,
       type: "success",
       message: "Login successful",
-      data: {
-        user: userWithoutPassword,
-        token: token,
-      },
+      data: userWithoutPassword,
+      token: token,
     });
   } catch (error) {
     console.error(error.message);

@@ -6,6 +6,7 @@ exports.sendResponse = (res, options = {}) => {
     data = null,
     error = null,
     validationErrors = null,
+    totalPages = null,
   } = options;
 
   const response = {
@@ -14,6 +15,7 @@ exports.sendResponse = (res, options = {}) => {
   };
 
   if (data) response.data = data;
+  if (totalPages) response.totalPages = totalPages;
   if (error) response.error = error;
   if (validationErrors) response.validationErrors = validationErrors;
 

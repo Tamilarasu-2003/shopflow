@@ -30,10 +30,8 @@ const getAllProducts = async (req, res) => {
       status: 200,
       type: "success",
       message: "Success",
-      data: {
-        products: allProducts,
-        totalPages: totalPages,
-      },
+      data: allProducts,
+      totalPages: totalPages,
     });
   } catch (error) {
     console.error(error.message);
@@ -150,10 +148,8 @@ const getFilteredProducts = async (req, res) => {
       status: 200,
       type: "success",
       message: "Success",
-      data: {
-        products,
-        length: products.length,
-      },
+      data: products,
+      length: products.length,
     });
   } catch (error) {
     console.error("Error fetching products:", error.message);
@@ -170,11 +166,6 @@ const searchProducts = async (req, res) => {
   try {
     const {
       query,
-      brand,
-      category,
-      subCategory,
-      minPrice,
-      maxPrice,
       page = 1,
       size = 10,
     } = req.query;
@@ -188,24 +179,19 @@ const searchProducts = async (req, res) => {
     }
 
     const parsedQuery = await parseQuery(query);
-    console.log("Parsed Query:", parsedQuery);
+    // console.log("Parsed Query:", parsedQuery);
 
     const offset = (page - 1) * size;
 
-    // Construct the Elasticsearch query
     const searchBody = {
-      from: offset,
-      size: parseInt(size),
       query: {
         bool: {
           should: [
             {
-              match: {
-                name: {
-                  query: query,
-                  boost: 5,
-                  fuzziness: "AUTO",
-                },
+              multi_match: {
+                query: query,
+                fields: ["brand^5", "name", "description", "category^3", "subCategory^2"],
+                fuzziness: "AUTO",
               },
             },
             ...(parsedQuery.brand
@@ -234,32 +220,17 @@ const searchProducts = async (req, res) => {
                   },
                 ]
               : []),
-            ...(parsedQuery.subCategory
-              ? [
-                  {
-                    match: {
-                      subCategory: {
-                        query: parsedQuery.subCategory,
-                        boost: 2,
-                        fuzziness: "AUTO",
-                      },
+            ...(parsedQuery.attributes.length > 0
+              ? parsedQuery.attributes.map((attr) => ({
+                  match: {
+                    attributes: {
+                      query: attr,
+                      boost: 2,
+                      fuzziness: "AUTO",
                     },
                   },
-                ]
+                }))
               : []),
-            {
-              query_string: {
-                query: `*${query}*`,
-                fields: [
-                  "name",
-                  "brand",
-                  "description",
-                  "category",
-                  "subCategory",
-                ],
-                boost: 0.5,
-              },
-            },
           ],
           minimum_should_match: 1,
           filter: [
@@ -274,7 +245,7 @@ const searchProducts = async (req, res) => {
       },
     };
 
-    console.log("Elasticsearch Query:", JSON.stringify(searchBody, null, 2));
+    // console.log("Elasticsearch Query:", JSON.stringify(searchBody, null, 2));
 
     const body = await elasticClient.search({
       index: "products",
@@ -286,7 +257,7 @@ const searchProducts = async (req, res) => {
       ...hit._source,
     }));
 
-    sendResponse(res, {
+    res.json( {
       status: 200,
       type: "success",
       message: "Products fetched successfully",
