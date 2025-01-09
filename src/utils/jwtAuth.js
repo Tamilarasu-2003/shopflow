@@ -7,4 +7,20 @@ const createToken = async (payload) => {
   return token;
 };
 
-module.exports = { createToken };
+const verifyToken = async (token) => {
+  await jwt.verify(token, process.env.JWT_TOKEN, (err, user) => {
+    if (err) {
+      return sendResponse(res, {
+        status: 403,
+        type: "error",
+        message: "Invalid or expired token",
+      });
+    }
+    console.log("user",user);
+    
+    return user;
+  });
+  
+};
+
+module.exports = { createToken, verifyToken };

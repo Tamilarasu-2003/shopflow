@@ -110,4 +110,57 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { signup, login };
+const oAuth = async (req, res) => {
+  try {
+    const { id, name, email, image } = req.body;
+    console.log(req.body);
+    
+    // const email = emails[0]?.value;
+    // const profilePicture = photos[0]?.value;
+
+    let user = await prisma.user.findUnique({
+      where: { googleId: id },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          googleId: id,
+          email: email,
+          name: name,
+          profilePicture: image,
+          password: "Tamil@9976",
+        },
+      });
+    }
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+    let token = await jwtToken.createToken({
+      id: existingUser.id,
+      name: existingUser.name,
+      email: existingUser.email,
+    });
+    const { password: _, ...userWithoutPassword } = existingUser;
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Login successful",
+      data: userWithoutPassword,
+      token: token,
+    });
+  } catch (error) {
+    console.error(error.message);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Login error, please try again later.",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { signup, login, oAuth };
