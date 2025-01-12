@@ -62,9 +62,8 @@ const addItemToCart = async (req, res) => {
       (item) => item.productId === parseInt(productId)
     );
 
-    
     if (existingCartItem) {
-      totalPrice = totalPrice + (parseInt(quantity)*product.offerPrice)
+      totalPrice = totalPrice + parseInt(quantity) * product.offerPrice;
       const updatedCartItem = await prisma.cartItem.update({
         where: { id: existingCartItem.id },
         data: {
@@ -86,7 +85,7 @@ const addItemToCart = async (req, res) => {
         cartId: cart.id,
         productId: parseInt(productId),
         quantity: parseInt(quantity),
-        totalPrice : totalPrice,
+        totalPrice: totalPrice,
       },
     });
 
@@ -219,4 +218,115 @@ const deleteFromCart = async (req, res) => {
   }
 };
 
-module.exports = { addItemToCart, viewCart, deleteFromCart };
+const updateCartItemCount = async (req, res) => {
+  try {
+    const { userId, productId, operation } = req.query;
+
+    if (!['increase', 'decrease'].includes(operation)) {
+      return sendResponse(res, {
+        status: 400,
+        type: "error",
+        message: "Invalid operation. Use 'increase' or 'decrease'.",
+      });
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(productId) },
+    });
+
+    if (!product) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "Product not found.",
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
+
+    if (!user) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "User not found.",
+      });
+    }
+
+    const cart = await prisma.cart.findUnique({
+      where: { userId: parseInt(userId) },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!cart) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "Cart not found.",
+      });
+    }
+
+    const cartItem = cart.items.find(
+      (item) => item.productId === parseInt(productId)
+    );
+
+    if (!cartItem) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "Product not found in cart.",
+      });
+    }
+
+    let newQuantity =
+      operation === 'increase'
+        ? cartItem.quantity + 1
+        : cartItem.quantity - 1;
+
+    if (newQuantity < 1) {
+      return sendResponse(res, {
+        status: 400,
+        type: "error",
+        message: "Quantity cannot be less than 1.",
+      });
+    }
+
+    let newTotalPrice = newQuantity * product.offerPrice;
+
+    const updatedCart = await prisma.cart.update({
+      where: { id: cart.id },
+      data: {
+        items: {
+          update: {
+            where: { id: cartItem.id }, 
+            data: {
+              quantity: newQuantity,
+              totalPrice: newTotalPrice,
+            },
+          },
+        },
+      },
+      include: { items: true }, 
+    });
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: `Cart item count ${operation === 'increase' ? 'increased' : 'decreased'}.`,
+      data: updatedCart,
+    });
+  } catch (error) {
+    console.error("Error updating cart item count:", error);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal server error.",
+    });
+  }
+};
+
+
+module.exports = { addItemToCart, viewCart, deleteFromCart, updateCartItemCount };
