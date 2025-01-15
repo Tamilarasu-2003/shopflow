@@ -4,6 +4,7 @@ const express = require("express");
 const productRoute = require("./src/routes/productRoute");
 const userRoute = require("./src/routes/userRoute");
 const cartRoute = require('./src/routes/cartRoute');
+const wishlistRoute = require('./src/routes/wishlistRoute');
 const cors = require("cors");
 
 const app = express();
@@ -19,6 +20,7 @@ app.get("/", (req, res) => {
 app.use("/products", productRoute);
 app.use("/user", userRoute);
 app.use("/user/cart", cartRoute);
+app.use("/user/wishlist", wishlistRoute);
 
 app.listen(5000, () => {
   console.log("backend running successfully....");
