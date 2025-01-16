@@ -8,4 +8,6 @@ router.route("/signup").post(validationMiddleware.validateSignup, User.signup);
 router.route("/login").post(validationMiddleware.validateLogin, User.login);
 router.route("/oAuth").post(User.oAuth);
 
+router.route('/forgotPassword').post(User.forgotPassword);
+
 module.exports = router;

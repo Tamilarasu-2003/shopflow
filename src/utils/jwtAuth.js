@@ -5,6 +5,11 @@ const createToken = async (payload) => {
   return token;
 };
 
+const resetToken = async (payload) => {
+  const token = await jwt.sign(payload, process.env.JWT_TOKEN, { expiresIn: '10m' });
+  return token;
+};
+
 const verifyToken = async (token) => {
   await jwt.verify(token, process.env.JWT_TOKEN, (err, user) => {
     if (err) {
@@ -21,4 +26,4 @@ const verifyToken = async (token) => {
   
 };
 
-module.exports = { createToken, verifyToken };
+module.exports = { createToken, verifyToken, resetToken };

@@ -163,4 +163,69 @@ const oAuth = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, oAuth };
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    let resetToken = await jwtToken.resetToken({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    });
+
+    const resetURL = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    await emailService.sendPasswordResetEmail(email, resetURL);
+
+    res.status(200).json({ message: 'Password reset link sent to your email.' });
+  } catch (error) {
+    console.error('Error in forgot password:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_TOKEN);
+
+    const user = await prisma.user.findUnique({
+      where: { email: decoded.email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { email: user.email },
+      data: {
+        password: hashedPassword,
+      },
+    });
+
+    res.status(200).json({ message: 'Password successfully reset.' });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: 'Reset token has expired.' });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(400).json({ message: 'Invalid reset token.' });
+    }
+
+    console.error('Error resetting password:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+module.exports = { signup, login, oAuth, forgotPassword, resetPassword };
