@@ -1,0 +1,11 @@
+const express = require("express");
+const order = require('../controllers/orderController');
+
+const router = express.Router();
+
+router.post("/createOrder", order.createOrder);
+router.post("/verify", order.verifyPaymentAndUpdateOrder);
+router.get("/:userId", order.getUserOrders);
+router.put("/:orderId/cancel", order.cancelOrder);
+
+module.exports = router;

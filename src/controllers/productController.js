@@ -258,7 +258,7 @@ const searchProducts = async (req, res) => {
     }));
 
     res.json( {
-      status: 200,
+      status: "success",
       type: "success",
       message: "Products fetched successfully",
       data: products,

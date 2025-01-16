@@ -40,7 +40,7 @@ model Product {
   discountPercentage Float?
   rating             Float?
   stock              Int                      @default(1)
-  categoryId         Int                      
+  categoryId         Int
   category           Category                 @relation(fields: [categoryId], references: [id])
   subCategoryId      Int
   subCategory        SubCategory              @relation(fields: [subCategoryId], references: [id])
@@ -98,15 +98,15 @@ model Cart {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
- 
+
 model CartItem {
-  id        Int     @id @default(autoincrement())
-  cart      Cart    @relation(fields: [cartId], references: [id])
-  cartId    Int
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-  quantity  Int     @default(1)
-  totalPrice Int 
+  id         Int     @id @default(autoincrement())
+  cart       Cart    @relation(fields: [cartId], references: [id])
+  cartId     Int
+  product    Product @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int     @default(1)
+  totalPrice Int
 }
 
 model Order {
@@ -114,8 +114,9 @@ model Order {
   user        User          @relation(fields: [userId], references: [id])
   userId      Int
   items       OrderedItem[]
-  status      String
+  status      OrderStatus   @default(PENDING)
   totalAmount Float
+  paymentId   String?
   orderDate   DateTime      @default(now())
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -128,6 +129,13 @@ model OrderedItem {
   product   Product @relation(fields: [productId], references: [id])
   productId Int
   quantity  Int     @default(1)
+  price     Float
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
 }
 
 model Recommendation {
