@@ -164,6 +164,8 @@ const oAuth = async (req, res) => {
 };
 
 const forgotPassword = async (req, res) => {
+  console.log("forgot password");
+  
   const { email } = req.body;
 
   try {

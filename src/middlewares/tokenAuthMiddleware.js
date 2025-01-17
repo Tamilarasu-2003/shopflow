@@ -9,6 +9,8 @@ const { sendResponse } = require("../utils/responseHandler");
 const validateToken = async (req, res, next) => {
     const {userId} = req.query;
     let token = req.headers.authorization?.split(' ')[1];
+    console.log("token", token);
+    
 
     if (!token){
         return sendResponse(res, {
@@ -18,6 +20,10 @@ const validateToken = async (req, res, next) => {
         });
     }
     const payload = jwt.verify(token, process.env.JWT_TOKEN)
+    console.log("id ",userId);
+    console.log("payloadID ",payload.id );
+    
+    
     
 
     const user = await prisma.user.findUnique({

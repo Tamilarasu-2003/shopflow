@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "CartItem" ALTER COLUMN "totalPrice" SET DATA TYPE DOUBLE PRECISION;

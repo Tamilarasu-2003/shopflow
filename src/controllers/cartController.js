@@ -3,107 +3,126 @@ const prisma = new PrismaClient();
 
 const { sendResponse } = require("../utils/responseHandler");
 
-const addItemToCart = async (req, res) => {
-  const { userId, productId, quantity } = req.query;
+  const addItemToCart = async (req, res) => {
+    const { userId, productId, quantity } = req.query;
 
-  try {
-    const product = await prisma.product.findUnique({
-      where: { id: parseInt(productId) },
-    });
-
-    if (!product) {
-      return sendResponse(res, {
-        status: 404,
-        type: "error",
-        message: "Product not found.",
+    try {
+      const product = await prisma.product.findUnique({
+        where: { id: parseInt(productId) },
       });
-    }
 
-    let totalPrice = parseInt(quantity) * product.offerPrice;
+      if (!product) {
+        return sendResponse(res, {
+          status: 404,
+          type: "error",
+          message: "Product not found.",
+        });
+      }
 
-    if (quantity > product.stock) {
-      return sendResponse(res, {
-        status: 400,
-        type: "error",
-        message: "Requested quantity exceeds available stock.",
+      let totalPrice = parseInt(quantity) * product.offerPrice;
+      
+
+      if (quantity > product.stock) {
+        return sendResponse(res, {
+          status: 400,
+          type: "error",
+          message: "Requested quantity exceeds available stock.",
+        });
+      }
+
+      let cart = await prisma.cart.findUnique({
+        where: { userId: parseInt(userId) },
+        include: { items: true },
       });
-    }
 
-    let cart = await prisma.cart.findUnique({
-      where: { userId: parseInt(userId) },
-      include: { items: true },
-    });
-
-    if (!cart) {
-      cart = await prisma.cart.create({
-        data: {
-          userId: parseInt(userId),
-          totalPrice: totalPrice,
-          items: {
-            create: [
-              {
-                productId: parseInt(productId),
-                quantity: parseInt(quantity),
-              },
-            ],
+      if (!cart) {
+        cart = await prisma.cart.create({
+          data: {
+            userId: parseInt(userId),
+            totalAmount: totalPrice,
+            items: {
+              create: [
+                {
+                  productId: parseInt(productId),
+                  quantity: parseInt(quantity),
+                  totalPrice: totalPrice,
+                },
+              ],
+            },
           },
+        });
+
+        return sendResponse(res, {
+          status: 201,
+          type: "success",
+          message: "Cart created, and item added successfully.",
+          data: cart,
+        });
+      }
+
+      console.log("cart ",cart);
+      
+
+      const existingCartItem = cart.items.find(
+        (item) => item.productId === parseInt(productId)
+      );
+
+      if (existingCartItem) {
+        totalPrice = existingCartItem.totalPrice + parseInt(quantity) * product.offerPrice;
+        const updatedCartItem = await prisma.cartItem.update({
+          where: { id: existingCartItem.id },
+          data: {
+            quantity: existingCartItem.quantity + parseInt(quantity),
+            totalPrice: totalPrice,
+          },
+        });
+
+        await prisma.cart.update({
+          where: { userId: parseInt(userId) },
+          data: {
+            totalAmount: cart.totalAmount + (parseInt(quantity) * product.offerPrice)
+          },
+        });
+
+        return sendResponse(res, {
+          status: 200,
+          type: "success",
+          message: "Cart item quantity updated successfully.",
+          data: updatedCartItem,
+        });
+      }
+
+      const newCartItem = await prisma.cartItem.create({
+        data: {
+          cartId: cart.id,
+          productId: parseInt(productId),
+          quantity: parseInt(quantity),
+          totalPrice: totalPrice,
         },
       });
 
-      return sendResponse(res, {
+      await prisma.cart.update({
+        where: { userId: parseInt(userId) },
+        data: {
+          totalAmount: cart.totalAmount + (parseInt(quantity) * product.offerPrice)
+        },
+      });
+
+      sendResponse(res, {
         status: 201,
         type: "success",
-        message: "Cart created, and item added successfully.",
-        data: cart,
+        message: "Item added to cart successfully.",
+        data: newCartItem,
+      });
+    } catch (error) {
+      console.error("Error adding item to cart:", error);
+      sendResponse(res, {
+        status: 500,
+        type: "error",
+        message: "Internal server error.",
       });
     }
-
-    const existingCartItem = cart.items.find(
-      (item) => item.productId === parseInt(productId)
-    );
-
-    if (existingCartItem) {
-      totalPrice = totalPrice + parseInt(quantity) * product.offerPrice;
-      const updatedCartItem = await prisma.cartItem.update({
-        where: { id: existingCartItem.id },
-        data: {
-          quantity: existingCartItem.quantity + parseInt(quantity),
-          totalPrice: totalPrice,
-        },
-      });
-
-      return sendResponse(res, {
-        status: 200,
-        type: "success",
-        message: "Cart item quantity updated successfully.",
-        data: updatedCartItem,
-      });
-    }
-
-    const newCartItem = await prisma.cartItem.create({
-      data: {
-        cartId: cart.id,
-        productId: parseInt(productId),
-        quantity: parseInt(quantity),
-        totalPrice: totalPrice,
-      },
-    });
-
-    sendResponse(res, {
-      status: 201,
-      type: "success",
-      message: "Item added to cart successfully.",
-      data: newCartItem,
-    });
-  } catch (error) {
-    console.error("Error adding item to cart:", error);
-    sendResponse(res, {
-      status: 500,
-      type: "error",
-      message: "Internal server error.",
-    });
-  }
-};
+  };
 
 const viewCart = async (req, res) => {
   const { userId } = req.query;
@@ -123,7 +142,12 @@ const viewCart = async (req, res) => {
   const cart = await prisma.cart.findUnique({
     where: { userId: parseInt(userId) },
     include: {
-      items: true,
+      items: {
+        orderBy: { createdAt: 'desc' },
+        include: {
+          product: true,
+        },
+      },
     },
   });
 
@@ -166,6 +190,7 @@ const deleteFromCart = async (req, res) => {
       },
     });
 
+
     if (!cart) {
       sendResponse(res, {
         status: 404,
@@ -177,6 +202,11 @@ const deleteFromCart = async (req, res) => {
     const indexFound = cart.items.findIndex(
       (item) => item.productId == productId
     );
+
+    const existingCartItem = cart.items.find(
+      (item) => item.productId === parseInt(productId)
+    );
+    
 
     if (indexFound == -1) {
       sendResponse(res, {
@@ -191,6 +221,7 @@ const deleteFromCart = async (req, res) => {
         userId: parseInt(userId),
       },
       data: {
+        totalAmount: cart.totalAmount - existingCartItem.totalPrice,
         items: {
           deleteMany: {
             productId: parseInt(productId),
@@ -299,6 +330,9 @@ const updateCartItemCount = async (req, res) => {
     const updatedCart = await prisma.cart.update({
       where: { id: cart.id },
       data: {
+        totalAmount: parseFloat(
+          (cart.totalAmount + (newTotalPrice - cartItem.totalPrice)).toFixed(2)
+        ),
         items: {
           update: {
             where: { id: cartItem.id }, 
@@ -312,11 +346,23 @@ const updateCartItemCount = async (req, res) => {
       include: { items: true }, 
     });
 
+    const cartData = await prisma.cart.findUnique({
+      where: { userId: parseInt(userId) },
+      include: {
+        items: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+
     sendResponse(res, {
       status: 200,
       type: "success",
       message: `Cart item count ${operation === 'increase' ? 'increased' : 'decreased'}.`,
-      data: updatedCart,
+      data: cartData,
     });
   } catch (error) {
     console.error("Error updating cart item count:", error);
