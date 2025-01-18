@@ -18,7 +18,8 @@ const validateToken = async (req, res, next) => {
             type: 'error',
             message: 'No token found......',
         });
-    }
+    };
+    
     const payload = jwt.verify(token, process.env.JWT_TOKEN)
     console.log("id ",userId);
     console.log("payloadID ",payload.id );

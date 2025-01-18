@@ -28,19 +28,21 @@ const createOrder = async (req, res) => {
         };
       })
     );
+    console.log("totalAmount ",totalAmount);
+    
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: totalAmount * 100,
+      amount: Math.ceil(totalAmount * 100),
       currency: "INR",
       receipt: `order_rcpt_${Date.now()}`,
     });
-
+    console.log("check");
     const order = await prisma.order.create({
       data: {
         userId,
         totalAmount,
         paymentId: razorpayOrder.id,
-        status: "PENDING",
+        paymentStatus: "PENDING",
         items: { create: orderItems },
       },
       include: { items: true },
@@ -73,7 +75,7 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
 
     const updatedOrder = await prisma.order.update({
       where: { paymentId: orderId },
-      data: { status: "COMPLETED", paymentId },
+      data: { paymentStatus: "COMPLETED", paymentId },
     });
 
     res.status(200).json({
@@ -109,7 +111,7 @@ const cancelOrder = async (req, res) => {
 
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(orderId) },
-      data: { status: "CANCELLED" },
+      data: { orderStatus: "CANCELLED" },
     });
 
     res.status(200).json({
