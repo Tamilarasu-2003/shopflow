@@ -28,20 +28,11 @@ const createOrder = async (req, res) => {
         };
       })
     );
-    console.log("totalAmount ",totalAmount);
-    
 
-    const razorpayOrder = await razorpay.orders.create({
-      amount: Math.ceil(totalAmount * 100),
-      currency: "INR",
-      receipt: `order_rcpt_${Date.now()}`,
-    });
-    console.log("check");
-    const order = await prisma.order.create({
+    const orderData = await prisma.order.create({
       data: {
         userId,
         totalAmount,
-        paymentId: razorpayOrder.id,
         paymentStatus: "PENDING",
         items: { create: orderItems },
       },
@@ -50,12 +41,45 @@ const createOrder = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Order created successfully.",
-      order,
-      razorpayOrder,
+      message: "Order created successfully for summary.",
+      order: orderData,
     });
   } catch (error) {
-    console.error("Error creating order:", error);
+    console.error("Error creating temporary order:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+const checkoutOrder = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order || order.paymentStatus !== "PENDING_SUMMARY")
+      return res.status(400).json({ message: "Invalid order for checkout." });
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.ceil(order.totalAmount * 100), // Convert to paisa
+      currency: "INR",
+      receipt: `order_rcpt_${Date.now()}`,
+    });
+
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: "PENDING_PAYMENT",
+        paymentId: razorpayOrder.id,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Checkout initiated successfully.",
+      razorpayOrder,
+      order: updatedOrder,
+    });
+  } catch (error) {
+    console.error("Error confirming checkout:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
@@ -127,6 +151,7 @@ const cancelOrder = async (req, res) => {
 
 module.exports = {
   createOrder,
+  checkoutOrder,
   verifyPaymentAndUpdateOrder,
   getUserOrders,
   cancelOrder,

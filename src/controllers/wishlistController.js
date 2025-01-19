@@ -31,9 +31,17 @@ const addOrRemoveItem = async (req, res) => {
     let wishlist = await prisma.wishlist.findUnique({
       where: { userId: parseInt(userId) },
       include: {
-        products: true,
+        products: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            product: true,
+          },
+        },
       },
     });
+
+    console.log(wishlist);
+    
 
     if (!wishlist) {
       wishlist = await prisma.wishlist.create({
@@ -101,10 +109,15 @@ const viewWishlist = async (req, res) => {
       });
     }
 
-    const wishlist = await prisma.wishlist.findUnique({
+    let wishlist = await prisma.wishlist.findUnique({
       where: { userId: parseInt(userId) },
       include: {
-        products: true,
+        products: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            product: true,
+          },
+        },
       },
     });
 
