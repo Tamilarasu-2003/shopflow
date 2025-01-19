@@ -162,12 +162,129 @@ const getFilteredProducts = async (req, res) => {
   }
 };
 
+// const searchProducts = async (req, res) => {
+//   try {
+//     const {
+//       query,
+//       page = 1,
+//       size = 10,
+//     } = req.query;
+
+//     if (!query) {
+//       return sendResponse(res, {
+//         status: 400,
+//         type: "error",
+//         message: "Search query is required",
+//       });
+//     }
+
+//     const parsedQuery = await parseQuery(query);
+//     // console.log("Parsed Query:", parsedQuery);
+
+//     const offset = (page - 1) * size;
+
+//     const searchBody = {
+//       query: {
+//         bool: {
+//           should: [
+//             {
+//               multi_match: {
+//                 query: query,
+//                 fields: ["brand^5", "name", "description", "category^3", "subCategory^2"],
+//                 fuzziness: "AUTO",
+//               },
+//             },
+//             ...(parsedQuery.brand
+//               ? [
+//                   {
+//                     match: {
+//                       brand: {
+//                         query: parsedQuery.brand,
+//                         boost: 4,
+//                         fuzziness: "AUTO",
+//                       },
+//                     },
+//                   },
+//                 ]
+//               : []),
+//             ...(parsedQuery.category
+//               ? [
+//                   {
+//                     match: {
+//                       category: {
+//                         query: parsedQuery.category,
+//                         boost: 3,
+//                         fuzziness: "AUTO",
+//                       },
+//                     },
+//                   },
+//                 ]
+//               : []),
+//             ...(parsedQuery.attributes.length > 0
+//               ? parsedQuery.attributes.map((attr) => ({
+//                   match: {
+//                     attributes: {
+//                       query: attr,
+//                       boost: 2,
+//                       fuzziness: "AUTO",
+//                     },
+//                   },
+//                 }))
+//               : []),
+//           ],
+//           minimum_should_match: 1,
+//           filter: [
+//             ...(parsedQuery.minPrice
+//               ? [{ range: { offerPrice: { gte: parsedQuery.minPrice } } }]
+//               : []),
+//             ...(parsedQuery.maxPrice
+//               ? [{ range: { offerPrice: { lte: parsedQuery.maxPrice } } }]
+//               : []),
+//           ],
+//         },
+//       },
+//     };
+
+//     // console.log("Elasticsearch Query:", JSON.stringify(searchBody, null, 2));
+
+//     const body = await elasticClient.search({
+//       index: "products",
+//       body: searchBody,
+//     });
+
+//     const products = body.hits.hits.map((hit) => ({
+//       id: hit._id,
+//       ...hit._source,
+//     }));
+
+//     res.json( {
+//       status: "success",
+//       type: "success",
+//       message: "Products fetched successfully",
+//       data: products,
+//       totalCount: body.hits.total.value || 0,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching products from Elasticsearch:", error);
+//     sendResponse(res, {
+//       status: 500,
+//       type: "error",
+//       message: "Server error",
+//     });
+//   }
+// };
+
 const searchProducts = async (req, res) => {
   try {
     const {
       query,
       page = 1,
       size = 10,
+      brand,
+      category,
+      minPrice,
+      maxPrice,
+      attributes = [],
     } = req.query;
 
     if (!query) {
@@ -179,10 +296,28 @@ const searchProducts = async (req, res) => {
     }
 
     const parsedQuery = await parseQuery(query);
-    // console.log("Parsed Query:", parsedQuery);
 
     const offset = (page - 1) * size;
 
+    const buildQuery = (field, value, boost = 1, fuzziness = "AUTO") => ({
+      match: {
+        [field]: {
+          query: value,
+          boost: boost,
+          fuzziness: fuzziness,
+        },
+      },
+    });
+
+    const buildRangeFilter = (field, operator, value) => ({
+      range: {
+        [field]: {
+          [operator]: value,
+        },
+      },
+    });
+
+    // Construct the main search query
     const searchBody = {
       query: {
         bool: {
@@ -190,63 +325,36 @@ const searchProducts = async (req, res) => {
             {
               multi_match: {
                 query: query,
-                fields: ["brand^5", "name", "description", "category^3", "subCategory^2"],
+                fields: [
+                  "brand^5",
+                  "name",
+                  "description",
+                  "category^3",
+                  "subCategory^2",
+                ],
                 fuzziness: "AUTO",
               },
             },
-            ...(parsedQuery.brand
-              ? [
-                  {
-                    match: {
-                      brand: {
-                        query: parsedQuery.brand,
-                        boost: 4,
-                        fuzziness: "AUTO",
-                      },
-                    },
-                  },
-                ]
-              : []),
-            ...(parsedQuery.category
-              ? [
-                  {
-                    match: {
-                      category: {
-                        query: parsedQuery.category,
-                        boost: 3,
-                        fuzziness: "AUTO",
-                      },
-                    },
-                  },
-                ]
-              : []),
-            ...(parsedQuery.attributes.length > 0
-              ? parsedQuery.attributes.map((attr) => ({
-                  match: {
-                    attributes: {
-                      query: attr,
-                      boost: 2,
-                      fuzziness: "AUTO",
-                    },
-                  },
-                }))
-              : []),
-          ],
+            brand ? buildQuery("brand", brand, 4) : null,
+            category ? buildQuery("category", category, 3) : null,
+            ...attributes.length
+              ? attributes.map((attr) =>
+                  buildQuery("attributes", attr, 2)
+                )
+              : [],
+          ].filter(Boolean),
           minimum_should_match: 1,
           filter: [
-            ...(parsedQuery.minPrice
-              ? [{ range: { offerPrice: { gte: parsedQuery.minPrice } } }]
-              : []),
-            ...(parsedQuery.maxPrice
-              ? [{ range: { offerPrice: { lte: parsedQuery.maxPrice } } }]
-              : []),
+            ...(minPrice ? [buildRangeFilter("offerPrice", "gte", minPrice)] : []),
+            ...(maxPrice ? [buildRangeFilter("offerPrice", "lte", maxPrice)] : []),
           ],
         },
       },
+      from: offset,
+      size: size,
     };
 
-    // console.log("Elasticsearch Query:", JSON.stringify(searchBody, null, 2));
-
+    // Perform the main search in Elasticsearch
     const body = await elasticClient.search({
       index: "products",
       body: searchBody,
@@ -257,11 +365,15 @@ const searchProducts = async (req, res) => {
       ...hit._source,
     }));
 
-    res.json( {
+    // Fetch similar products based on the first result (you can customize this logic)
+    const similarProducts = await getSimilarProducts(products[0]);
+
+    res.json({
       status: "success",
       type: "success",
       message: "Products fetched successfully",
       data: products,
+      similarProducts,
       totalCount: body.hits.total.value || 0,
     });
   } catch (error) {
@@ -273,6 +385,38 @@ const searchProducts = async (req, res) => {
     });
   }
 };
+
+// Function to fetch similar products using more_like_this query
+const getSimilarProducts = async (product) => {
+  const { category, brand, attributes } = product;
+
+  const mltQuery = {
+    query: {
+      more_like_this: {
+        fields: ["category", "brand", "attributes"],
+        like: [
+          {
+            _id: product.id, // We are looking for similar products based on the current product
+          },
+        ],
+        min_term_freq: 1,
+        max_query_terms: 12,
+      },
+    },
+    size: 5, // Adjust this to return more or fewer similar products
+  };
+
+  const mltResponse = await elasticClient.search({
+    index: "products",
+    body: mltQuery,
+  });
+
+  return mltResponse.hits.hits.map((hit) => ({
+    id: hit._id,
+    ...hit._source,
+  }));
+};
+
 
 const getCategory = async (req, res) => {
   try {

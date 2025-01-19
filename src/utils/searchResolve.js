@@ -4,8 +4,8 @@ const prisma = new PrismaClient();
 const parseQuery = async (query) => {
   try {
     const result = {
-      brand: null,
-      category: null,
+      brand: [],
+      category: [],
       minPrice: null,
       maxPrice: null,
       attributes: [],
@@ -16,12 +16,14 @@ const parseQuery = async (query) => {
         brand: true,
       },
     });
-
     const brandNames = brands.map((brand) => brand.brand).join("|");
-    const brandRegex = new RegExp(`\\b(${brandNames})\\b`, "i");
-
-    const brandMatch = query.match(brandRegex);
-    if (brandMatch) result.brand = brandMatch[0].trim();
+    const brandRegex = new RegExp(`\\b(${brandNames})\\b`, "gi");
+    const brandMatches = query.match(brandRegex);
+    if (brandMatches) {
+      result.brand = Array.from(
+        new Set(brandMatches.map((brand) => brand.trim()))
+      );
+    }
 
     const categories = await prisma.Category.findMany({
       select: {
@@ -34,14 +36,15 @@ const parseQuery = async (query) => {
         name: true,
       },
     });
+
     const allCategories = [...categories, ...subCategories];
-    const categoryRegex = new RegExp(
-      `\\b(${allCategories.join("|")})\\b`,
-      "gi"
-    );
-    const categoryMatch = query.match(categoryRegex);
-    if (categoryMatch) {
-      result.category = categoryMatch[0];
+    const categoryNames = allCategories.map((cat) => cat.name).join("|");
+    const categoryRegex = new RegExp(`\\b(${categoryNames})\\b`, "gi");
+    const categoryMatches = query.match(categoryRegex);
+    if (categoryMatches) {
+      result.category = Array.from(
+        new Set(categoryMatches.map((cat) => cat.trim()))
+      );
     }
 
     const underMatch = query.match(/under\s(\d+)/i);
@@ -57,8 +60,11 @@ const parseQuery = async (query) => {
     }
 
     const attributeMatches = query.match(/\b(black|red|leather)\b/gi);
-    if (attributeMatches)
-      result.attributes = attributeMatches.map((attr) => attr.toLowerCase());
+    if (attributeMatches) {
+      result.attributes = Array.from(
+        new Set(attributeMatches.map((attr) => attr.toLowerCase()))
+      );
+    }
 
     return result;
   } catch (error) {

@@ -6,7 +6,7 @@ const crypto = require("crypto");
 
 const createOrder = async (req, res) => {
   try {
-    const { userId, items } = req.body;
+    const { userId, items } = req.query;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: "User not found." });
@@ -52,7 +52,7 @@ const createOrder = async (req, res) => {
 
 const checkoutOrder = async (req, res) => {
   try {
-    const { orderId } = req.body;
+    const { orderId } = req.query;
 
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     if (!order || order.paymentStatus !== "PENDING_SUMMARY")
@@ -86,7 +86,7 @@ const checkoutOrder = async (req, res) => {
 
 const verifyPaymentAndUpdateOrder = async (req, res) => {
   try {
-    const { orderId, paymentId, paymentSignature } = req.body;
+    const { orderId, paymentId, paymentSignature } = req.query;
 
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
