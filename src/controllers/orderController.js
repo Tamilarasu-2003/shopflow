@@ -34,10 +34,17 @@ const createOrder = async (req, res) => {
         userId,
         totalAmount,
         paymentStatus: "PENDING",
-        items: { create: orderItems },
+        items: { create: orderItems }, // Assumes orderItems is properly structured
       },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            product: true, // Include related Product data
+          },
+        },
+      },
     });
+    
 
     res.status(201).json({
       success: true,
