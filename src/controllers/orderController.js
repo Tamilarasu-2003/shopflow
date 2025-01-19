@@ -6,9 +6,9 @@ const crypto = require("crypto");
 
 const createOrder = async (req, res) => {
   try {
-    const { userId, items } = req.query;
+    const { userId, items } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
     if (!user) return res.status(404).json({ message: "User not found." });
 
     let totalAmount = 0;
@@ -115,7 +115,7 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
 
 const getUserOrders = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId } = req.query;
 
     const orders = await prisma.order.findMany({
       where: { userId: parseInt(userId) },
@@ -131,7 +131,7 @@ const getUserOrders = async (req, res) => {
 
 const cancelOrder = async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const { orderId } = req.query;
 
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(orderId) },
