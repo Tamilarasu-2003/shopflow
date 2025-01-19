@@ -54,8 +54,8 @@ const checkoutOrder = async (req, res) => {
   try {
     const { orderId } = req.query;
 
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || order.paymentStatus !== "PENDING_SUMMARY")
+    const order = await prisma.order.findUnique({ where: { id: parseInt(orderId) } });
+    if (!order || order.paymentStatus !== "PENDING")
       return res.status(400).json({ message: "Invalid order for checkout." });
 
     const razorpayOrder = await razorpay.orders.create({
@@ -65,9 +65,9 @@ const checkoutOrder = async (req, res) => {
     });
 
     const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
+      where: { id: parseInt(orderId) },
       data: {
-        paymentStatus: "PENDING_PAYMENT",
+        paymentStatus: "PENDING",
         paymentId: razorpayOrder.id,
       },
     });
