@@ -1,3 +1,5 @@
+const Razorpay = require("razorpay");
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
@@ -34,12 +36,12 @@ const createOrder = async (req, res) => {
         userId,
         totalAmount,
         paymentStatus: "PENDING",
-        items: { create: orderItems }, // Assumes orderItems is properly structured
+        items: { create: orderItems },
       },
       include: {
         items: {
           include: {
-            product: true, // Include related Product data
+            product: true, 
           },
         },
       },
@@ -61,6 +63,9 @@ const checkoutOrder = async (req, res) => {
   try {
     const { orderId } = req.query;
 
+    console.log("orderId : ", orderId);
+    
+
     const order = await prisma.order.findUnique({ where: { id: parseInt(orderId) } });
     if (!order || order.paymentStatus !== "PENDING")
       return res.status(400).json({ message: "Invalid order for checkout." });
@@ -78,6 +83,8 @@ const checkoutOrder = async (req, res) => {
         paymentId: razorpayOrder.id,
       },
     });
+    console.log("updatedOrder : ", updatedOrder);
+    
 
     res.status(200).json({
       success: true,
@@ -93,20 +100,32 @@ const checkoutOrder = async (req, res) => {
 
 const verifyPaymentAndUpdateOrder = async (req, res) => {
   try {
-    const { orderId, paymentId, paymentSignature } = req.query;
+    const { orderId, razorpayId, paymentId, paymentSignature } = req.query;
 
-    const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(orderId + "|" + paymentId)
-      .digest("hex");
+    // Validate required parameters
+    if (!orderId || !razorpayId || !paymentId || !paymentSignature) {
+      return res.status(400).json({ message: "Missing required parameters." });
+    }
 
-    if (generatedSignature !== paymentSignature) {
+    console.log("Verifying Payment:", { orderId, razorpayId, paymentId, paymentSignature });
+
+    // Verify signature
+    const isValidSignature = Razorpay.validateWebhookSignature(
+      razorpayId + "|" + paymentId,
+      paymentSignature,
+      process.env.RAZORPAY_KEY_SECRET
+    );
+
+    if (!isValidSignature) {
       return res.status(400).json({ message: "Invalid payment signature." });
     }
 
+    // Update the order in the database
     const updatedOrder = await prisma.order.update({
-      where: { paymentId: orderId },
-      data: { paymentStatus: "COMPLETED", paymentId },
+      where: { id: parseInt(orderId) },
+      data: { paymentStatus: "COMPLETED", 
+        orderStatus : "CONFORMED",
+        paymentId },
     });
 
     res.status(200).json({
