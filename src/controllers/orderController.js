@@ -59,7 +59,7 @@ const checkoutOrder = async (req, res) => {
       return res.status(400).json({ message: "Invalid order for checkout." });
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.ceil(order.totalAmount * 100), // Convert to paisa
+      amount: Math.ceil(order.totalAmount * 100),
       currency: "INR",
       receipt: `order_rcpt_${Date.now()}`,
     });
