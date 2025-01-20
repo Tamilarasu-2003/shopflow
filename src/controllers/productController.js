@@ -386,7 +386,6 @@ const searchProducts = async (req, res) => {
   }
 };
 
-// Function to fetch similar products using more_like_this query
 const getSimilarProducts = async (product) => {
   const { category, brand, attributes } = product;
 
