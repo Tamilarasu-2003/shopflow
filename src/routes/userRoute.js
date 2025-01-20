@@ -9,5 +9,6 @@ router.route("/login").post(validationMiddleware.validateLogin, User.login);
 router.route("/oAuth").post(User.oAuth);
 
 router.route('/forgotPassword').post(User.forgotPassword);
+router.route('/resetPassword').post(User.resetPassword);
 
 module.exports = router;

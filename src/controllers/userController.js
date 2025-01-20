@@ -117,7 +117,7 @@ const oAuth = async (req, res) => {
   try {
     const { id, name, email, image } = req.body;
     console.log(req.body);
-    
+
     // const email = emails[0]?.value;
     // const profilePicture = photos[0]?.value;
 
@@ -126,8 +126,8 @@ const oAuth = async (req, res) => {
     });
 
     if (!user) {
-      const randomPassword = crypto.randomBytes(16).toString("hex"); 
-      const hashedPassword = await bcrypt.hash(randomPassword, 10); 
+      const randomPassword = crypto.randomBytes(16).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
       user = await prisma.user.create({
         data: {
           googleId: id,
@@ -168,9 +168,75 @@ const oAuth = async (req, res) => {
   }
 };
 
+const updateUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name, email, phone, profilePhoto } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
+
+    if (!user) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "User not found.",
+        data: null,
+      });
+    }
+
+    if (email || phone) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: email, NOT: { id: parseInt(userId) } },
+            { phone: phone, NOT: { id: parseInt(userId) } },
+          ],
+        },
+      });
+
+      if (existingUser) {
+        return sendResponse(res, {
+          status: 400,
+          type: "error",
+          message: "Email or phone already exists for another user.",
+          data: null,
+        });
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(userId) },
+      data: {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(phone && { phone }),
+        ...(profilePhoto && { profilePhoto }),
+      },
+    });
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "User profile updated successfully.",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating user profile:", error.message);
+
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
 const forgotPassword = async (req, res) => {
   console.log("forgot password");
-  
+
   const { email } = req.body;
 
   try {
@@ -179,7 +245,7 @@ const forgotPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: "User not found." });
     }
 
     let resetToken = await jwtToken.resetToken({
@@ -191,10 +257,12 @@ const forgotPassword = async (req, res) => {
     const resetURL = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     await emailService.sendPasswordResetEmail(email, resetURL);
 
-    res.status(200).json({ message: 'Password reset link sent to your email.' });
+    res
+      .status(200)
+      .json({ message: "Password reset link sent to your email." });
   } catch (error) {
-    console.error('Error in forgot password:', error);
-    res.status(500).json({ message: 'Internal server error.' });
+    console.error("Error in forgot password:", error);
+    res.status(500).json({ message: "Internal server error." });
   }
 };
 
@@ -209,7 +277,7 @@ const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: "User not found." });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -221,17 +289,17 @@ const resetPassword = async (req, res) => {
       },
     });
 
-    res.status(200).json({ message: 'Password successfully reset.' });
+    res.status(200).json({ message: "Password successfully reset." });
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(400).json({ message: 'Reset token has expired.' });
+    if (error.name === "TokenExpiredError") {
+      return res.status(400).json({ message: "Reset token has expired." });
     }
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(400).json({ message: 'Invalid reset token.' });
+    if (error.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid reset token." });
     }
 
-    console.error('Error resetting password:', error);
-    res.status(500).json({ message: 'Internal server error.' });
+    console.error("Error resetting password:", error);
+    res.status(500).json({ message: "Internal server error." });
   }
 };
 
