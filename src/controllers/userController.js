@@ -5,6 +5,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const hash = require("../utils/hashPassword");
+const jwt = require("jsonwebtoken");
 const jwtToken = require("../utils/jwtAuth");
 
 const { sendResponse } = require("../utils/responseHandler");
@@ -306,7 +307,7 @@ const resetPassword = async (req, res) => {
 
     sendResponse(res, {
       status: 200,
-      type: "success",
+      success: true,
       message: "Password successfully reset.",
     });
 
