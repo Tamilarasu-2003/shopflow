@@ -417,7 +417,6 @@ const getSimilarProducts = async (product) => {
   }));
 };
 
-
 const getCategory = async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
@@ -562,6 +561,47 @@ const getProductsByCategory = async (req, res) => {
   }
 };
 
+const getTrendingProducts = async (req, res) => {
+  try {
+    const trendingProducts = await prisma.product.findMany({
+      where: {
+        rating: { gte: 4.5 }, 
+        stock: { gt: 0 },
+      },
+      orderBy: [
+        { rating: "desc" },
+        { discountPercentage: "desc" },
+      ],
+      take: 10,
+    });
+
+    if (!trendingProducts || trendingProducts.length === 0) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "Trending products not found.",
+        data: null,
+      });
+    }
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Trending products retrieved successfully.",
+      data: trendingProducts,
+    });
+  } catch (error) {
+    console.error("Error fetching trending products:", error.message);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+
 module.exports = {
   getAllProducts,
   getFlashDealProducts,
@@ -571,4 +611,5 @@ module.exports = {
   getSubCategory,
   getProdyctById,
   getProductsByCategory,
+  getTrendingProducts,
 };
