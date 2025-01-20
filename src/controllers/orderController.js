@@ -178,7 +178,7 @@ const getUserOrders = async (req, res) => {
 
       const orders = await prisma.order.findMany({
         where: { userId: parseInt(userId),
-          orderStatus : "CONFORMED"
+          orderStatus : "CONFIRMED"
          },
         include: { items: { include: { product: true } } },
       });
