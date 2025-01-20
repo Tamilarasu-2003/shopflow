@@ -101,14 +101,12 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
   try {
     const { orderId, razorpayId, paymentId, paymentSignature } = req.query;
 
-    // Validate required parameters
     if (!orderId || !razorpayId || !paymentId || !paymentSignature) {
       return res.status(400).json({ message: "Missing required parameters." });
     }
 
     console.log("Verifying Payment:", { orderId, razorpayId, paymentId, paymentSignature });
 
-    // Verify signature
     const isValidSignature = Razorpay.validateWebhookSignature(
       razorpayId + "|" + paymentId,
       paymentSignature,
@@ -119,7 +117,6 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
       return res.status(400).json({ message: "Invalid payment signature." });
     }
 
-    // Update the order in the database
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(orderId) },
       data: { paymentStatus: "COMPLETED", 
@@ -137,6 +134,43 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
+
+const  DeleteOrderForFailedPayment = async (req, res) => {
+  try {
+    const { orderId } = req.query;
+
+    if (!orderId) {
+      return res.status(400).json({ message: "Order ID is required." });
+    }
+
+    console.log("Deleting failed order:", { orderId });
+
+    const order = await prisma.order.findUnique({
+      where: { id: parseInt(orderId) },
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
+    }
+
+    if (order.paymentStatus === "COMPLETED") {
+      return res.status(400).json({ message: "Cannot delete a completed order." });
+    }
+
+    await prisma.order.delete({
+      where: { id: parseInt(orderId) },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Order deleted successfully due to failed payment.",
+    });
+  } catch (error) {
+    console.error("Error deleting failed order:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
 
 const getUserOrders = async (req, res) => {
   try {
@@ -179,6 +213,7 @@ const cancelOrder = async (req, res) => {
 module.exports = {
   createOrder,
   checkoutOrder,
+  DeleteOrderForFailedPayment,
   verifyPaymentAndUpdateOrder,
   getUserOrders,
   cancelOrder,
