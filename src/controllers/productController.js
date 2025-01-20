@@ -637,6 +637,46 @@ const getNewArrivals = async (req, res) => {
   }
 };
 
+const getLimitedTimeOffers = async (req, res) => {
+  try {
+    const now = new Date(); 
+    const limitedOffers = await prisma.product.findMany({
+      where: {
+        stock: { gt: 0 }, 
+        discountPercentage: { gte: 20 },
+        // offerStart: { lte: now },
+        // offerEnd: { gte: now },
+      },
+      orderBy: { discountPercentage: "desc" }, 
+      take: 10, 
+    });
+
+    if (!limitedOffers || limitedOffers.length === 0) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "No limited time offers found.",
+        data: null,
+      });
+    }
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Limited time offers retrieved successfully.",
+      data: limitedOffers,
+    });
+  } catch (error) {
+    console.error("Error fetching limited time offers:", error.message);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
 
 
 module.exports = {
@@ -650,4 +690,5 @@ module.exports = {
   getProductsByCategory,
   getTrendingProducts,
   getNewArrivals,
+  getLimitedTimeOffers,
 };
