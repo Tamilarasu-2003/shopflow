@@ -714,6 +714,44 @@ const getTopRatedProducts = async (req, res) => {
   }
 };
 
+const getClearanceSaleProducts = async (req, res) => {
+  try {
+    const clearanceSaleProducts = await prisma.product.findMany({
+      where: {
+        discountPercentage: { gte: 50 }, 
+        stock: { lte: 10 }, 
+      },
+      orderBy: { discountPercentage: "desc" },
+      take: 10, 
+    });
+
+    if (!clearanceSaleProducts || clearanceSaleProducts.length === 0) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "No clearance sale products found.",
+        data: null,
+      });
+    }
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Clearance sale products retrieved successfully.",
+      data: clearanceSaleProducts,
+    });
+  } catch (error) {
+    console.error("Error fetching clearance sale products:", error.message);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+
 
 
 
@@ -730,4 +768,5 @@ module.exports = {
   getNewArrivals,
   getLimitedTimeOffers,
   getTopRatedProducts,
+  getClearanceSaleProducts,
 };
