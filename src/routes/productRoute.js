@@ -18,5 +18,6 @@ router
 router.route('/getTrendingProducts').get(products.getTrendingProducts);
 router.route('/getNewArrivals').get(products.getNewArrivals);
 router.route('/getLimitedTimeOffers').get(products.getLimitedTimeOffers);
+router.route('/getTopRatedProducts').get(products.getTopRatedProducts);
 
 module.exports = router;

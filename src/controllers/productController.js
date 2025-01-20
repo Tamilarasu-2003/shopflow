@@ -677,6 +677,44 @@ const getLimitedTimeOffers = async (req, res) => {
   }
 };
 
+const getTopRatedProducts = async (req, res) => {
+  try {
+    const topRatedProducts = await prisma.product.findMany({
+      where: {
+        stock: { gt: 0 },
+        rating: { gte: 4.0 }, 
+      },
+      orderBy: { rating: "desc" }, 
+      take: 10, 
+    });
+
+    if (!topRatedProducts || topRatedProducts.length === 0) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "Top-rated products not found.",
+        data: null,
+      });
+    }
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Top-rated products retrieved successfully.",
+      data: topRatedProducts,
+    });
+  } catch (error) {
+    console.error("Error fetching top-rated products:", error.message);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+
 
 
 module.exports = {
@@ -691,4 +729,5 @@ module.exports = {
   getTrendingProducts,
   getNewArrivals,
   getLimitedTimeOffers,
+  getTopRatedProducts,
 };
