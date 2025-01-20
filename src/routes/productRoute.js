@@ -15,4 +15,6 @@ router
   .route("/getProductBySearch")
   .get(validateSearchQuery, products.searchProducts);
 
+
+
 module.exports = router;

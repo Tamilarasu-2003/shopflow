@@ -530,6 +530,7 @@ const getProductsByCategory = async (req, res) => {
       select: {
         id: true,
         name: true,
+        image: true,
         description: true,
         actualPrice: true,
         offerPrice: true,
