@@ -4,7 +4,6 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const razorpay = require("../utils/razorpay");
-const crypto = require("crypto");
 
 const createOrder = async (req, res) => {
   try {
@@ -124,7 +123,7 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(orderId) },
       data: { paymentStatus: "COMPLETED", 
-        orderStatus : "CONFORMED",
+        orderStatus : "CONFIRMED",
         paymentId },
     });
 

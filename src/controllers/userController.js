@@ -1,3 +1,6 @@
+const crypto = require("crypto");
+const bcrypt = require("bcrypt");
+
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
@@ -123,13 +126,15 @@ const oAuth = async (req, res) => {
     });
 
     if (!user) {
+      const randomPassword = crypto.randomBytes(16).toString("hex"); 
+      const hashedPassword = await bcrypt.hash(randomPassword, 10); 
       user = await prisma.user.create({
         data: {
           googleId: id,
           email: email,
           name: name,
           profilePicture: image,
-          password: "Tamil@9976",
+          password: hashedPassword,
         },
       });
     }
