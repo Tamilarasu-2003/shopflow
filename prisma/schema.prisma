@@ -40,7 +40,6 @@ model Product {
   brand              String
   categoryId         Int
   cartItems          CartItem[]
-  images             Image[]
   orderedItems       OrderedItem[]
   category           Category                 @relation(fields: [categoryId], references: [id])
   subCategory        SubCategory              @relation(fields: [subCategoryId], references: [id])
@@ -48,13 +47,6 @@ model Product {
   wishlistItems      WishlistProduct[]
 }
 
-model Image {
-  id        Int      @id @default(autoincrement())
-  url       String
-  productId Int
-  createdAt DateTime @default(now())
-  product   Product  @relation(fields: [productId], references: [id])
-}
 
 model Category {
   id            Int           @id @default(autoincrement())
