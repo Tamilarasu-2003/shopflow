@@ -16,5 +16,6 @@ router
   .get(validateSearchQuery, products.searchProducts);
 
 router.route('/getTrendingProducts').get(products.getTrendingProducts);
+router.route('/getNewArrivals').get(products.getNewArrivals);
 
 module.exports = router;

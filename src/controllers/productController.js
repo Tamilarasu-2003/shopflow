@@ -601,6 +601,43 @@ const getTrendingProducts = async (req, res) => {
   }
 };
 
+const getNewArrivals = async (req, res) => {
+  try {
+    const newArrivals = await prisma.product.findMany({
+      where: {
+        stock: { gt: 0 }, 
+      },
+      orderBy: { createdAt: "desc" }, 
+      take: 10, 
+    });
+
+    if (!newArrivals || newArrivals.length === 0) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "New arrivals not found.",
+        data: null,
+      });
+    }
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "New arrivals retrieved successfully.",
+      data: newArrivals,
+    });
+  } catch (error) {
+    console.error("Error fetching new arrivals:", error.message);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
+
+
 
 module.exports = {
   getAllProducts,
@@ -612,4 +649,5 @@ module.exports = {
   getProdyctById,
   getProductsByCategory,
   getTrendingProducts,
+  getNewArrivals,
 };
