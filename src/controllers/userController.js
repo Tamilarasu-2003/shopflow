@@ -237,7 +237,7 @@ const updateUserProfile = async (req, res) => {
 const forgotPassword = async (req, res) => {
   console.log("forgot password");
 
-  const { email } = req.body;
+  const { email } = req.query;
 
   try {
     const user = await prisma.user.findUnique({
@@ -267,7 +267,7 @@ const forgotPassword = async (req, res) => {
 };
 
 const resetPassword = async (req, res) => {
-  const { token, newPassword } = req.body;
+  const { token, newPassword } = req.query;
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_TOKEN);
