@@ -607,7 +607,7 @@ const getNewArrivals = async (req, res) => {
       where: {
         stock: { gt: 0 }, 
       },
-      orderBy: { createdAt: "desc" }, 
+      orderBy: { updatedAt: "desc" }, 
       take: 10, 
     });
 
