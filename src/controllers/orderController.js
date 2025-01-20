@@ -143,10 +143,12 @@ const getUserOrders = async (req, res) => {
   try {
     const { userId } = req.query;
 
-    const orders = await prisma.order.findMany({
-      where: { userId: parseInt(userId) },
-      include: { items: { include: { product: true } } },
-    });
+      const orders = await prisma.order.findMany({
+        where: { userId: parseInt(userId),
+          orderStatus : "CONFORMED"
+         },
+        include: { items: { include: { product: true } } },
+      });
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
