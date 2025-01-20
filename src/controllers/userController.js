@@ -8,6 +8,7 @@ const hash = require("../utils/hashPassword");
 const jwtToken = require("../utils/jwtAuth");
 
 const { sendResponse } = require("../utils/responseHandler");
+const emailService = require('../utils/emailServices');
 
 const signup = async (req, res) => {
   try {
@@ -171,7 +172,7 @@ const oAuth = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { name, email, phone, profilePhoto } = req.body;
+    const { name, email, phone } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -182,7 +183,6 @@ const updateUserProfile = async (req, res) => {
         status: 404,
         type: "error",
         message: "User not found.",
-        data: null,
       });
     }
 
@@ -201,7 +201,6 @@ const updateUserProfile = async (req, res) => {
           status: 400,
           type: "error",
           message: "Email or phone already exists for another user.",
-          data: null,
         });
       }
     }
@@ -245,7 +244,11 @@ const forgotPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "User not found.",
+      });
     }
 
     let resetToken = await jwtToken.resetToken({
@@ -257,12 +260,20 @@ const forgotPassword = async (req, res) => {
     const resetURL = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     await emailService.sendPasswordResetEmail(email, resetURL);
 
-    res
-      .status(200)
-      .json({ message: "Password reset link sent to your email." });
+    sendResponse(res, {
+      status: 404,
+      type: "error",
+      message: "Password reset link sent to your email.",
+    });
+
   } catch (error) {
     console.error("Error in forgot password:", error);
-    res.status(500).json({ message: "Internal server error." });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
 
@@ -277,7 +288,11 @@ const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "User not found.",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -289,18 +304,38 @@ const resetPassword = async (req, res) => {
       },
     });
 
-    res.status(200).json({ message: "Password successfully reset." });
+    sendResponse(res, {
+      status: 404,
+      type: "error",
+      message: "Password successfully reset.",
+    });
+
   } catch (error) {
     if (error.name === "TokenExpiredError") {
-      return res.status(400).json({ message: "Reset token has expired." });
+      sendResponse(res, {
+        status: 500,
+        type: "error",
+        message: "Reset token has expired.",
+        error: error.message,
+      });
     }
     if (error.name === "JsonWebTokenError") {
-      return res.status(400).json({ message: "Invalid reset token." });
+      sendResponse(res, {
+        status: 500,
+        type: "error",
+        message: "Invalid reset token.",
+        error: error.message,
+      });
     }
 
     console.error("Error resetting password:", error);
-    res.status(500).json({ message: "Internal server error." });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
 
-module.exports = { signup, login, oAuth, forgotPassword, resetPassword };
+module.exports = { signup, login, oAuth, forgotPassword, resetPassword, updateUserProfile };
