@@ -27,7 +27,7 @@ model User {
 model Product {
   id                 Int                      @id @default(autoincrement())
   name               String
-  image String 
+  image              String
   description        String
   stock              Int                      @default(1)
   createdAt          DateTime                 @default(now())
@@ -125,7 +125,7 @@ model Order {
   orderDate     DateTime      @default(now())
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  paymentId     String? @unique
+  paymentId     String?       @unique
   orderStatus   String        @default("PENDING")
   paymentStatus OrderStatus   @default(PENDING)
   user          User          @relation(fields: [userId], references: [id])
