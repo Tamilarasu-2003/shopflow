@@ -305,8 +305,8 @@ const resetPassword = async (req, res) => {
     });
 
     sendResponse(res, {
-      status: 404,
-      type: "error",
+      status: 200,
+      type: "success",
       message: "Password successfully reset.",
     });
 
