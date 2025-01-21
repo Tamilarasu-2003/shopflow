@@ -8,7 +8,7 @@ router.route("/signup").post(validationMiddleware.validateSignup, User.signup);
 router.route("/login").post(validationMiddleware.validateLogin, User.login);
 router.route("/oAuth").post(User.oAuth);
 
-router.route("/oAupdateUserProfileuth").post(User.updateUserProfile);
+router.route("/UserProfil").post(User.updateUserProfile);
 
 router.route('/forgotPassword').post(User.forgotPassword);
 router.route('/resetPassword').post(User.resetPassword);
