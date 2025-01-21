@@ -131,7 +131,7 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
     const user = await prisma.user.findUnique({
       where : {id : parseInt(order.userId)}
     })
-    await emailService.sendPasswordResetEmail(user.email, "Order placed successfully....");
+    await emailService.orderUpdateEmail(user.email, updatedOrder, "Placed");
 
     res.status(200).json({
       success: true,

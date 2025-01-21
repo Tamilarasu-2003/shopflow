@@ -28,7 +28,7 @@ const client = new Client({
   }),
 });
 
-const { parseQuery } = require("../utils/searchResolve");
+// const { parseQuery } = require("../utils/searchResolve");
 const { sendResponse } = require("../utils/responseHandler");
 
 const getAllProducts = async (req, res) => {
@@ -308,7 +308,6 @@ const searchProducts = async (req, res) => {
 
   let priceFilter = {};
 
-  // Extract price filters from the query string
   const underMatch = query.match(/under\s(\d+)/i);
   if (underMatch) {
     priceFilter["offerPrice"] = { lte: parseFloat(underMatch[1]) };
@@ -328,7 +327,6 @@ const searchProducts = async (req, res) => {
     };
   }
 
-  // Remove price filter if it's empty
   const filterClause = Object.keys(priceFilter).length ? { filter: { range: priceFilter } } : {};
 
   try {
@@ -447,35 +445,35 @@ const searchProducts = async (req, res) => {
 };
 
 
-const getSimilarProducts = async (product) => {
-  const { category, brand, attributes } = product;
+// const getSimilarProducts = async (product) => {
+//   const { category, brand, attributes } = product;
 
-  const mltQuery = {
-    query: {
-      more_like_this: {
-        fields: ["category", "brand", "attributes"],
-        like: [
-          {
-            _id: product.id, // We are looking for similar products based on the current product
-          },
-        ],
-        min_term_freq: 1,
-        max_query_terms: 12,
-      },
-    },
-    size: 5, // Adjust this to return more or fewer similar products
-  };
+//   const mltQuery = {
+//     query: {
+//       more_like_this: {
+//         fields: ["category", "brand", "attributes"],
+//         like: [
+//           {
+//             _id: product.id, // We are looking for similar products based on the current product
+//           },
+//         ],
+//         min_term_freq: 1,
+//         max_query_terms: 12,
+//       },
+//     },
+//     size: 5, // Adjust this to return more or fewer similar products
+//   };
 
-  const mltResponse = await client.search({
-    index: "products",
-    body: mltQuery,
-  });
+//   const mltResponse = await client.search({
+//     index: "products",
+//     body: mltQuery,
+//   });
 
-  return mltResponse.body.hits.hits.map((hit) => ({
-    id: hit._id,
-    ...hit._source,
-  }));
-};
+//   return mltResponse.body.hits.hits.map((hit) => ({
+//     id: hit._id,
+//     ...hit._source,
+//   }));
+// };
 
 const getCategory = async (req, res) => {
   try {
@@ -574,7 +572,7 @@ const getProdyctById = async (req, res) => {
   }
 };
 
-const getProductsByCategory = async (req, res) => {
+const getProductsBySubCategory = async (req, res) => {
   try {
     const { subCategoryId } = req.query;
     if (!subCategoryId || isNaN(subCategoryId)) {
@@ -816,7 +814,7 @@ module.exports = {
   getCategory,
   getSubCategory,
   getProdyctById,
-  getProductsByCategory,
+  getProductsBySubCategory,
   getTrendingProducts,
   getNewArrivals,
   getLimitedTimeOffers,

@@ -17,6 +17,16 @@ const sendPasswordResetEmail = async (email, resetURL) => {
     subject: 'Password Reset Request',
     text: `You requested a password reset. Click the link below to reset your password: \n\n${resetURL}`,
   };
+  
+  }
+
+  const orderUpdateEmail = async (email, data, update) => {
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'SHOPFLOW Order Update',
+      text: `Your order has been successfully ${update}./n/nOrder Data: ${data}`,
+    };
 
   try {
     await transporter.sendMail(mailOptions);
@@ -28,4 +38,5 @@ const sendPasswordResetEmail = async (email, resetURL) => {
 
 module.exports = {
   sendPasswordResetEmail,
+  orderUpdateEmail,
 };

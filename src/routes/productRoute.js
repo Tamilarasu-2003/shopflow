@@ -9,7 +9,7 @@ router.route("/flashDealProducts").get(products.getFlashDealProducts);
 router.route("/filteredProducts").get(products.getFilteredProducts);
 router.route("/Category").get(products.getCategory);
 router.route("/subCategory").get(products.getSubCategory);
-router.route("/getProductsByCategory").get(products.getProductsByCategory);
+router.route("/getProductsByCategory").get(products.getProductsBySubCategory);
 router.route("/getProductById").get(products.getProdyctById);
 router
   .route("/getProductBySearch")
