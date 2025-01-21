@@ -16,6 +16,10 @@ router.route("/oAuth").post(User.oAuth);
 router.route("/userProfileInfo").post(validateToken, User.userProfileInfo);
 router.route("/updateUserProfile").post(validateToken,upload.single('profile'), User.updateUserProfile);
 
+router.route('/getAllAddress').post(validateToken, User.getAllAddresses);
+router.route('/addAddress').post(validateToken, User.addAddress);
+router.route('/makePrimaryAddress').post(validateToken, User.makePrimaryAddress);
+
 router.route('/forgotPassword').post(User.forgotPassword);
 router.route('/resetPassword').post(User.resetPassword);
 

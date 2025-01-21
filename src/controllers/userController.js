@@ -305,8 +305,7 @@ const updateUserProfile = async (req, res) => {
 
 const addAddress = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { street, city, state, country, postalCode, isPrimary } = req.body;
+    const { userId, street, city, state, country, zip, isPrimary } = req.query;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -327,7 +326,7 @@ const addAddress = async (req, res) => {
     }
 
     const newAddress = await prisma.address.create({
-      data: { street, city, state, country, postalCode },
+      data: { street, city, state, country, postalCode : zip },
     });
 
     await prisma.addressOnUser.create({
@@ -353,7 +352,7 @@ const addAddress = async (req, res) => {
 
 const makePrimaryAddress = async (req, res) => {
   try {
-    const { userId, addressId } = req.params;
+    const { userId, addressId } = req.query;
 
     const addressOnUser = await prisma.addressOnUser.findFirst({
       where: {
@@ -392,6 +391,61 @@ const makePrimaryAddress = async (req, res) => {
   }
 };
 
+const getAllAddresses = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return sendResponse(res, {
+        status: 400,
+        type: "error",
+        message: "User ID is required.",
+      });
+    }
+
+    const userAddresses = await prisma.addressOnUser.findMany({
+      where: { userId: parseInt(userId) },
+      include: {
+        address: true, 
+      },
+    });
+
+    if (!userAddresses.length) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "No addresses found for this user.",
+      });
+    }
+    
+   const addresses = userAddresses
+   .map((userAddress) => ({
+     id: userAddress.address.id,
+     street: userAddress.address.street,
+     city: userAddress.address.city,
+     state: userAddress.address.state,
+     country: userAddress.address.country,
+     zip: userAddress.address.postalCode,
+     isPrimary: !!userAddress.isPrimary, 
+   }))
+   .sort((a, b) => b.isPrimary - a.isPrimary);
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Addresses retrieved successfully.",
+      data: addresses,
+    });
+  } catch (error) {
+    console.error("Error fetching addresses:", error);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
 
 
 const forgotPassword = async (req, res) => {
@@ -505,4 +559,7 @@ module.exports = {
   resetPassword,
   userProfileInfo,
   updateUserProfile,
+  addAddress,
+  makePrimaryAddress,
+  getAllAddresses,
 };
