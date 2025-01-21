@@ -285,7 +285,7 @@ const updateUserProfile = async (req, res) => {
     sendResponse(res, {
       status: 200,
       type: "success",
-      message: "Login successful",
+      message: "Profile Updated",
       data: {
         ...updatedUser,
         profile_pic: updatedUser.image,
