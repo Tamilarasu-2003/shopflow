@@ -285,8 +285,11 @@ const updateUserProfile = async (req, res) => {
     sendResponse(res, {
       status: 200,
       type: "success",
-      message: "User profile updated successfully.",
-      data: updatedUser,
+      message: "Login successful",
+      data: {
+        ...updatedUser,
+        profile_pic: updatedUser.image,
+      }
     });
   } catch (error) {
     console.error("Error updating user profile:", error);
