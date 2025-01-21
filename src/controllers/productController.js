@@ -634,7 +634,7 @@ const getLimitedTimeOffers = async (req, res) => {
     const limitedOffers = await prisma.product.findMany({
       where: {
         stock: { gt: 0 }, 
-        discountPercentage: { gte: 20 },
+        discountPercentage: { gte: 20, lte: 49 },
         // offerStart: { lte: now },
         // offerEnd: { gte: now },
       },
