@@ -212,7 +212,7 @@ const userProfileInfo = async (req, res) => {
       name: existingUser.name,
       email: existingUser.email,
       phone: existingUser.phone,
-      profile_pic: existingUser.profile_pic,
+      profile_pic: existingUser.image,
     },
   });
 };
