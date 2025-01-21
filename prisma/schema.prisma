@@ -51,7 +51,6 @@ model AddressOnUser {
   @@unique([userId, addressId])
 }
 
-
 model Product {
   id                 Int                      @id @default(autoincrement())
   name               String
