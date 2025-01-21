@@ -4,11 +4,11 @@ const order = require('../controllers/orderController');
 
 const router = express.Router();
 
-router.post("/createOrder", validateToken, order.createOrder);
-router.post("/checkoutOrder", validateToken, order.checkoutOrder);
-router.post("/verify", validateToken, order.verifyPaymentAndUpdateOrder);
-router.post("/failedVerify", validateToken, order.DeleteOrderForFailedPayment);
-router.get("/getUserOrder", validateToken, order.getUserOrders);
-router.put("/cancelOrder", validateToken, order.cancelOrder);
+router.post("/createOrder", order.createOrder);
+router.post("/checkoutOrder", order.checkoutOrder);
+router.post("/verify", order.verifyPaymentAndUpdateOrder);
+router.post("/failedVerify", order.DeleteOrderForFailedPayment);
+router.get("/getUserOrder", order.getUserOrders);
+router.put("/cancelOrder", order.cancelOrder);
 
 module.exports = router;
