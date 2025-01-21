@@ -1,24 +1,30 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+// const { Client } = require("@elastic/elasticsearch");
+// const elasticClient = new Client({ node: "http://localhost:9200" });
+
 const { Client } = require('@opensearch-project/opensearch');
-const AWS = require('aws-sdk');
+const AWS = require("aws-sdk");
 
 AWS.config.update({
-  region: 'ap-south-1',
+  region: "ap-south-1",
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
 
 const client = new Client({
-  node: process.env.ELASTICSEARCH_HOST, 
+  node: process.env.ELASTICSEARCH_HOST,
   auth: {
-    username: 'Tamilarasu', 
-    password: 'Tamil@9976', 
+    username: "Tamilarasu",
+    password: "Tamil@9976",
   },
   awsConfig: new AWS.Config({
-    region: 'ap-south-1',
-    credentials: new AWS.Credentials(process.env.AWS_ACCESS_KEY_ID, process.env.AWS_SECRET_ACCESS_KEY),
+    region: "ap-south-1",
+    credentials: new AWS.Credentials(
+      process.env.AWS_ACCESS_KEY_ID,
+      process.env.AWS_SECRET_ACCESS_KEY
+    ),
   }),
 });
 
@@ -67,7 +73,7 @@ const getAllProducts = async (req, res) => {
 const getFlashDealProducts = async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      where: { discountPercentage: { gte: 25 } },
+      where: { discountPercentage: { gte: 50, lte: 72 } },
       orderBy: { discountPercentage: "desc" },
       take: 5,
     });
@@ -293,89 +299,152 @@ const getFilteredProducts = async (req, res) => {
 // };
 
 const searchProducts = async (req, res) => {
-  try {
-    const {
-      query,
-      page = 1,
-      size = 10,
-      brand,
-      category,
-      minPrice,
-      maxPrice,
-      attributes = [],
-    } = req.query;
+  const { query, page = 1, limit = 12 } = req.query;
+  const offset = (page - 1) * limit;
 
-    if (!query) {
-      return res.status(400).json({
-        status: "error",
-        message: "Search query is required",
-      });
-    }
+  if (!query) {
+    return res.status(400).json({ message: "Search query is required" });
+  }
 
-    const offset = (page - 1) * size;
+  let priceFilter = {};
 
-    // Ensure attributes are an array of strings
-    const parsedAttributes = Array.isArray(attributes)
-      ? attributes
-      : attributes.split(",").map((attr) => attr.trim());
+  // Extract price filters from the query string
+  const underMatch = query.match(/under\s(\d+)/i);
+  if (underMatch) {
+    priceFilter["offerPrice"] = { lte: parseFloat(underMatch[1]) };
+  }
 
-    // Build dynamic query
-    const searchBody = {
-      query: {
-        bool: {
-          should: [
-            {
-              multi_match: {
-                query: query,
-                fields: ["brand^5", "name", "description", "category^3", "subCategory^2"],
-                fuzziness: "AUTO",
-              },
-            },
-            ...(brand ? [{ match: { brand: brand } }] : []),
-            ...(category ? [{ match: { category: category } }] : []),
-            ...(parsedAttributes.length > 0
-              ? parsedAttributes.map((attr) => ({
-                  match: { attributes: attr },
-                }))
-              : []),
-          ].filter(Boolean), // Remove null or undefined values
-          minimum_should_match: 1,
-          filter: [
-            ...(minPrice ? [{ range: { offerPrice: { gte: minPrice } } }] : []),
-            ...(maxPrice ? [{ range: { offerPrice: { lte: maxPrice } } }] : []),
-          ],
-        },
-      },
-      from: offset,
-      size: size,
+  const aboveMatch = query.match(/above\s(\d+)/i);
+  if (aboveMatch) {
+    priceFilter["offerPrice"] = priceFilter["offerPrice"] || {};
+    priceFilter["offerPrice"]["gte"] = parseFloat(aboveMatch[1]);
+  }
+
+  const betweenMatch = query.match(/between\s(\d+)\s(?:and|to)\s(\d+)/i);
+  if (betweenMatch) {
+    priceFilter["offerPrice"] = {
+      gte: parseFloat(betweenMatch[1]),
+      lte: parseFloat(betweenMatch[2]),
     };
+  }
+
+  // Remove price filter if it's empty
+  const filterClause = Object.keys(priceFilter).length ? { filter: { range: priceFilter } } : {};
+
+  try {
+    console.log("Search query:", query);
 
     const body = await client.search({
       index: "products",
-      body: searchBody,
+      body: {
+        // from: offset,
+        // size: limit,
+        query: {
+          bool: {
+            must: [
+              {
+                bool: {
+                  should: [
+                    {
+                      match: {
+                        name: {
+                          query: query,
+                          boost: 5,
+                          fuzziness: "AUTO",
+                        },
+                      },
+                    },
+                    {
+                      bool: {
+                        must_not: {
+                          match: {
+                            name: query,
+                          },
+                        },
+                        should: [
+                          {
+                            match: {
+                              "category.name": {
+                                query: query,
+                                boost: 4,
+                                fuzziness: "AUTO",
+                              },
+                            },
+                          },
+                          {
+                            match: {
+                              brand: {
+                                query: query,
+                                boost: 4,
+                                fuzziness: "AUTO",
+                              },
+                            },
+                          },
+                          {
+                            multi_match: {
+                              query: query,
+                              fields: ["description"],
+                              boost: 2,
+                              fuzziness: "AUTO",
+                            },
+                          },
+                          {
+                            match: {
+                              "subCategory.name": {
+                                query: query,
+                                boost: 1,
+                                fuzziness: "AUTO",
+                              },
+                            },
+                          },
+                          {
+                            query_string: {
+                              query: `*${query}*`,
+                              fields: [
+                                "name",
+                                "category.name",
+                                "subCategory.name",
+                                "brand",
+                                "description",
+                              ],
+                              boost: 0.5,
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                  minimum_should_match: 1,
+                },
+              },
+            ],
+            ...(Object.keys(filterClause).length ? filterClause : {}),
+          },
+        },
+      },
     });
 
-    const products = body.body.hits.hits.map((hit) => ({
-      id: hit._id,
-      ...hit._source,
-    }));
+    console.log("offset:", offset);
+    console.log("limit:", limit);
 
+    console.log(body.body.hits);
+
+    const products = body.body.hits
+      ? body.body.hits.hits.map((hit) => ({
+          id: hit._id,
+          ...hit._source,
+        }))
+      : [];
+    console.log("totalCount", body.body.hits.total.value);
     res.json({
-      status: "success",
-      type: "success",
-      message: "Products fetched successfully",
-      data: products,
-      totalCount: body.body.hits.total.value || 0,
+      products,
+      totalCount: body.body.hits ? body.body.hits.total.value : 0,
     });
   } catch (error) {
     console.error("Error fetching products from Elasticsearch:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Server error",
-    });
+    res.status(500).send("Server error");
   }
 };
-
 
 
 const getSimilarProducts = async (product) => {
@@ -556,13 +625,10 @@ const getTrendingProducts = async (req, res) => {
   try {
     const trendingProducts = await prisma.product.findMany({
       where: {
-        rating: { gte: 4.5 }, 
+        rating: { gte: 4.5 },
         stock: { gt: 0 },
       },
-      orderBy: [
-        { rating: "desc" },
-        { discountPercentage: "desc" },
-      ],
+      orderBy: [{ rating: "desc" }, { discountPercentage: "desc" }],
       take: 10,
     });
 
@@ -596,10 +662,10 @@ const getNewArrivals = async (req, res) => {
   try {
     const newArrivals = await prisma.product.findMany({
       where: {
-        stock: { gt: 0 }, 
+        stock: { gt: 0 },
       },
-      orderBy: { updatedAt: "desc" }, 
-      take: 10, 
+      orderBy: { updatedAt: "desc" },
+      take: 10,
     });
 
     if (!newArrivals || newArrivals.length === 0) {
@@ -630,16 +696,16 @@ const getNewArrivals = async (req, res) => {
 
 const getLimitedTimeOffers = async (req, res) => {
   try {
-    const now = new Date(); 
+    const now = new Date();
     const limitedOffers = await prisma.product.findMany({
       where: {
-        stock: { gt: 0 }, 
+        stock: { gt: 0 },
         discountPercentage: { gte: 20, lte: 49 },
         // offerStart: { lte: now },
         // offerEnd: { gte: now },
       },
-      orderBy: { discountPercentage: "desc" }, 
-      take: 10, 
+      orderBy: { discountPercentage: "desc" },
+      take: 10,
     });
 
     if (!limitedOffers || limitedOffers.length === 0) {
@@ -673,10 +739,10 @@ const getTopRatedProducts = async (req, res) => {
     const topRatedProducts = await prisma.product.findMany({
       where: {
         stock: { gt: 0 },
-        rating: { gte: 4.0 }, 
+        rating: { gte: 4.0 },
       },
-      orderBy: { rating: "desc" }, 
-      take: 10, 
+      orderBy: { rating: "desc" },
+      take: 10,
     });
 
     if (!topRatedProducts || topRatedProducts.length === 0) {
@@ -709,11 +775,11 @@ const getClearanceSaleProducts = async (req, res) => {
   try {
     const clearanceSaleProducts = await prisma.product.findMany({
       where: {
-        discountPercentage: { gte: 50 }, 
-        stock: { lte: 10 }, 
+        discountPercentage: { gte: 50 },
+        stock: { lte: 10 },
       },
       orderBy: { discountPercentage: "desc" },
-      take: 10, 
+      take: 10,
     });
 
     if (!clearanceSaleProducts || clearanceSaleProducts.length === 0) {
@@ -741,10 +807,6 @@ const getClearanceSaleProducts = async (req, res) => {
     });
   }
 };
-
-
-
-
 
 module.exports = {
   getAllProducts,

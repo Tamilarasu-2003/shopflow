@@ -173,7 +173,7 @@ const oAuth = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { name, email, phone } = req.body;
+    const { name, phone } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -210,9 +210,7 @@ const updateUserProfile = async (req, res) => {
       where: { id: parseInt(userId) },
       data: {
         ...(name && { name }),
-        ...(email && { email }),
         ...(phone && { phone }),
-        ...(profilePhoto && { profilePhoto }),
       },
     });
 
