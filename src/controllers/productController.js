@@ -429,7 +429,7 @@ const searchProducts = async (req, res) => {
 
     console.log(body.body.hits);
 
-    const products = body.body.hits
+    const data = body.body.hits
       ? body.body.hits.hits.map((hit) => ({
           id: hit._id,
           ...hit._source,
@@ -437,7 +437,7 @@ const searchProducts = async (req, res) => {
       : [];
     console.log("totalCount", body.body.hits.total.value);
     res.json({
-      products,
+      data,
       totalCount: body.body.hits ? body.body.hits.total.value : 0,
     });
   } catch (error) {
