@@ -216,7 +216,7 @@ const userProfileInfo = async (req, res) => {
 
 const updateUserProfile = async (req, res) => {
   try {
-    const image = req.file;
+    let image = req.file;
     const data = req.body;
     const { userId } = req.query;
     console.log("userid : ", userId);
@@ -259,9 +259,8 @@ const updateUserProfile = async (req, res) => {
         Body: image.buffer,
         ContentType: image.mimetype,
       };
-      console.log(params.Body);
       const s3Response = await s3.upload(params).promise();
-      image = s3Response.Location;
+      imageUrl = s3Response.Location;
     }
 
     const updatedUser = await prisma.user.update({
@@ -282,13 +281,13 @@ const updateUserProfile = async (req, res) => {
       data: updatedUser,
     });
   } catch (error) {
-    console.error("Error updating user profile:", error.message);
+    console.error("Error updating user profile:", error);
 
     sendResponse(res, {
       status: 500,
       type: "error",
       message: "Internal Server Error",
-      error: error.message,
+      error: error,
     });
   }
 };
