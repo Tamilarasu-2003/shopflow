@@ -109,7 +109,10 @@ const login = async (req, res) => {
       status: 200,
       type: "success",
       message: "Login successful",
-      data: userWithoutPassword,
+      data: {
+        ...userWithoutPassword,
+        profile_pic: userWithoutPassword.image,
+      },
       token: token,
     });
   } catch (error) {
@@ -209,7 +212,7 @@ const userProfileInfo = async (req, res) => {
       name: existingUser.name,
       email: existingUser.email,
       phone: existingUser.phone,
-      profile_pic: existingUser.image,
+      profile_pic: existingUser.profile_pic,
     },
   });
 };
@@ -349,7 +352,6 @@ const makePrimaryAddress = async (req, res) => {
   try {
     const { userId, addressId } = req.params;
 
-    // Ensure the address belongs to the user
     const addressOnUser = await prisma.addressOnUser.findFirst({
       where: {
         userId: parseInt(userId),
@@ -364,13 +366,11 @@ const makePrimaryAddress = async (req, res) => {
       });
     }
 
-    // Unset previous primary addresses for the user
     await prisma.addressOnUser.updateMany({
       where: { userId: parseInt(userId), isPrimary: true },
       data: { isPrimary: false },
     });
 
-    // Set the specified address as primary
     await prisma.addressOnUser.update({
       where: { id: addressOnUser.id },
       data: { isPrimary: true },

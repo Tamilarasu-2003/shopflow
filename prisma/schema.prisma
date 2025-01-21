@@ -8,57 +8,55 @@ datasource db {
 }
 
 model User {
-  id              Int              @id @default(autoincrement())
-  name            String?
-  email           String           @unique
-  password        String
-  image           String?
-  address         String?
-  phone           String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  googleId        String?          @unique
-  profilePicture  String?
-  cart            Cart?
-  orders          Order[]
-  wishlist        Wishlist?
-  addresses       AddressOnUser[]
+  id          Int             @id @default(autoincrement())
+  name        String?
+  email       String          @unique
+  password    String
+  image String?
+  phone       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  googleId    String?         @unique
+  cart        Cart?
+  orders      Order[]
+  wishlist    Wishlist?
+  addresses   AddressOnUser[]
 }
 
 model Address {
-  id          Int              @id @default(autoincrement())
-  street      String
-  city        String
-  state       String
-  country     String
-  postalCode  String
-  users       AddressOnUser[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id         Int             @id @default(autoincrement())
+  street     String
+  city       String
+  state      String
+  country    String
+  postalCode String
+  users      AddressOnUser[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 }
 
 model AddressOnUser {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  addressId   Int
-  isPrimary   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  addressId Int
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  address     Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
 
   @@unique([userId, addressId])
 }
 
 model Product {
-  id                 Int                      @id @default(autoincrement())
+  id                 Int               @id @default(autoincrement())
   name               String
   image              String
   description        String
-  stock              Int                      @default(1)
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime?                @updatedAt
+  stock              Int               @default(1)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime?         @updatedAt
   subCategoryId      Int
   actualPrice        Float
   discountPercentage Float?
@@ -68,8 +66,8 @@ model Product {
   categoryId         Int
   cartItems          CartItem[]
   orderedItems       OrderedItem[]
-  category           Category                 @relation(fields: [categoryId], references: [id])
-  subCategory        SubCategory              @relation(fields: [subCategoryId], references: [id])
+  category           Category          @relation(fields: [categoryId], references: [id])
+  subCategory        SubCategory       @relation(fields: [subCategoryId], references: [id])
   wishlistItems      WishlistProduct[]
 }
 
@@ -160,7 +158,6 @@ model OrderedItem {
   order     Order   @relation(fields: [orderId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
 }
-
 
 enum OrderStatus {
   PENDING
