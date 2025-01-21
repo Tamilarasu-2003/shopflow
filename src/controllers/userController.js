@@ -217,11 +217,16 @@ const userProfileInfo = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     let image = req.file;
+    console.log("image : ",image);
+    
     const data = req.body;
     const { userId } = req.query;
     console.log("userid : ", userId);
 
     const { name, phone } = data;
+    console.log("name : ",name);
+    console.log("phone : ",phone);
+    
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
