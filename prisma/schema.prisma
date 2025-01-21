@@ -47,11 +47,11 @@ model Product {
   wishlistItems      WishlistProduct[]
 }
 
-
 model Category {
   id            Int           @id @default(autoincrement())
   name          String        @unique
   description   String?
+  image         String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @default(now()) @updatedAt
   products      Product[]
@@ -62,6 +62,7 @@ model SubCategory {
   id          Int       @id @default(autoincrement())
   name        String
   description String?
+  image       String?
   categoryId  Int
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @default(now()) @updatedAt

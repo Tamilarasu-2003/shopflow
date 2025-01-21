@@ -1,8 +1,26 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-const { Client } = require("@elastic/elasticsearch");
-const elasticClient = new Client({ node: process.env.ELASTICSEARCH_HOST });
+const { Client } = require('@opensearch-project/opensearch');
+const AWS = require('aws-sdk');
+
+AWS.config.update({
+  region: 'ap-south-1',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
+
+const client = new Client({
+  node: process.env.ELASTICSEARCH_HOST, 
+  auth: {
+    username: 'Tamilarasu', 
+    password: 'Tamil@9976', 
+  },
+  awsConfig: new AWS.Config({
+    region: 'ap-south-1',
+    credentials: new AWS.Credentials(process.env.AWS_ACCESS_KEY_ID, process.env.AWS_SECRET_ACCESS_KEY),
+  }),
+});
 
 const { parseQuery } = require("../utils/searchResolve");
 const { sendResponse } = require("../utils/responseHandler");
@@ -288,36 +306,20 @@ const searchProducts = async (req, res) => {
     } = req.query;
 
     if (!query) {
-      return sendResponse(res, {
-        status: 400,
-        type: "error",
+      return res.status(400).json({
+        status: "error",
         message: "Search query is required",
       });
     }
 
-    const parsedQuery = await parseQuery(query);
-
     const offset = (page - 1) * size;
 
-    const buildQuery = (field, value, boost = 1, fuzziness = "AUTO") => ({
-      match: {
-        [field]: {
-          query: value,
-          boost: boost,
-          fuzziness: fuzziness,
-        },
-      },
-    });
+    // Ensure attributes are an array of strings
+    const parsedAttributes = Array.isArray(attributes)
+      ? attributes
+      : attributes.split(",").map((attr) => attr.trim());
 
-    const buildRangeFilter = (field, operator, value) => ({
-      range: {
-        [field]: {
-          [operator]: value,
-        },
-      },
-    });
-
-    // Construct the main search query
+    // Build dynamic query
     const searchBody = {
       query: {
         bool: {
@@ -325,28 +327,22 @@ const searchProducts = async (req, res) => {
             {
               multi_match: {
                 query: query,
-                fields: [
-                  "brand^5",
-                  "name",
-                  "description",
-                  "category^3",
-                  "subCategory^2",
-                ],
+                fields: ["brand^5", "name", "description", "category^3", "subCategory^2"],
                 fuzziness: "AUTO",
               },
             },
-            brand ? buildQuery("brand", brand, 4) : null,
-            category ? buildQuery("category", category, 3) : null,
-            ...attributes.length
-              ? attributes.map((attr) =>
-                  buildQuery("attributes", attr, 2)
-                )
-              : [],
-          ].filter(Boolean),
+            ...(brand ? [{ match: { brand: brand } }] : []),
+            ...(category ? [{ match: { category: category } }] : []),
+            ...(parsedAttributes.length > 0
+              ? parsedAttributes.map((attr) => ({
+                  match: { attributes: attr },
+                }))
+              : []),
+          ].filter(Boolean), // Remove null or undefined values
           minimum_should_match: 1,
           filter: [
-            ...(minPrice ? [buildRangeFilter("offerPrice", "gte", minPrice)] : []),
-            ...(maxPrice ? [buildRangeFilter("offerPrice", "lte", maxPrice)] : []),
+            ...(minPrice ? [{ range: { offerPrice: { gte: minPrice } } }] : []),
+            ...(maxPrice ? [{ range: { offerPrice: { lte: maxPrice } } }] : []),
           ],
         },
       },
@@ -354,37 +350,33 @@ const searchProducts = async (req, res) => {
       size: size,
     };
 
-    // Perform the main search in Elasticsearch
-    const body = await elasticClient.search({
+    const body = await client.search({
       index: "products",
       body: searchBody,
     });
 
-    const products = body.hits.hits.map((hit) => ({
+    const products = body.body.hits.hits.map((hit) => ({
       id: hit._id,
       ...hit._source,
     }));
-
-    // Fetch similar products based on the first result (you can customize this logic)
-    const similarProducts = await getSimilarProducts(products[0]);
 
     res.json({
       status: "success",
       type: "success",
       message: "Products fetched successfully",
       data: products,
-      similarProducts,
-      totalCount: body.hits.total.value || 0,
+      totalCount: body.body.hits.total.value || 0,
     });
   } catch (error) {
     console.error("Error fetching products from Elasticsearch:", error);
-    sendResponse(res, {
-      status: 500,
-      type: "error",
+    res.status(500).json({
+      status: "error",
       message: "Server error",
     });
   }
 };
+
+
 
 const getSimilarProducts = async (product) => {
   const { category, brand, attributes } = product;
@@ -405,12 +397,12 @@ const getSimilarProducts = async (product) => {
     size: 5, // Adjust this to return more or fewer similar products
   };
 
-  const mltResponse = await elasticClient.search({
+  const mltResponse = await client.search({
     index: "products",
     body: mltQuery,
   });
 
-  return mltResponse.hits.hits.map((hit) => ({
+  return mltResponse.body.hits.hits.map((hit) => ({
     id: hit._id,
     ...hit._source,
   }));
