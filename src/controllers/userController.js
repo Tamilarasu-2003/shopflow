@@ -292,6 +292,100 @@ const updateUserProfile = async (req, res) => {
   }
 };
 
+const addAddress = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { street, city, state, country, postalCode, isPrimary } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "User not found.",
+      });
+    }
+
+    if (isPrimary) {
+      await prisma.addressOnUser.updateMany({
+        where: { userId: parseInt(userId), isPrimary: true },
+        data: { isPrimary: false },
+      });
+    }
+
+    const newAddress = await prisma.address.create({
+      data: { street, city, state, country, postalCode },
+    });
+
+    await prisma.addressOnUser.create({
+      data: {
+        userId: parseInt(userId),
+        addressId: newAddress.id,
+        isPrimary: !!isPrimary,
+      },
+    });
+
+    res.status(201).json({
+      status: "success",
+      message: "Address added successfully.",
+    });
+  } catch (error) {
+    console.error("Error adding address:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Internal Server Error",
+    });
+  }
+};
+
+const makePrimaryAddress = async (req, res) => {
+  try {
+    const { userId, addressId } = req.params;
+
+    // Ensure the address belongs to the user
+    const addressOnUser = await prisma.addressOnUser.findFirst({
+      where: {
+        userId: parseInt(userId),
+        addressId: parseInt(addressId),
+      },
+    });
+
+    if (!addressOnUser) {
+      return res.status(404).json({
+        status: "error",
+        message: "Address not found or does not belong to the user.",
+      });
+    }
+
+    // Unset previous primary addresses for the user
+    await prisma.addressOnUser.updateMany({
+      where: { userId: parseInt(userId), isPrimary: true },
+      data: { isPrimary: false },
+    });
+
+    // Set the specified address as primary
+    await prisma.addressOnUser.update({
+      where: { id: addressOnUser.id },
+      data: { isPrimary: true },
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Address marked as primary successfully.",
+    });
+  } catch (error) {
+    console.error("Error making address primary:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Internal Server Error",
+    });
+  }
+};
+
+
+
 const forgotPassword = async (req, res) => {
   console.log("forgot password");
 
