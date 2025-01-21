@@ -1,4 +1,5 @@
 const Razorpay = require("razorpay");
+const emailService = require('../utils/emailServices');
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
@@ -123,6 +124,7 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
         orderStatus : "CONFIRMED",
         paymentId },
     });
+    await emailService.sendPasswordResetEmail(updatedOrder, "Order placed successfully....");
 
     res.status(200).json({
       success: true,
