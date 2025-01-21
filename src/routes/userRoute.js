@@ -1,6 +1,11 @@
 const express = require("express");
 const User = require("../controllers/userController");
 const validationMiddleware = require("../middlewares/validationMiddleware");
+const {validateToken} = require('../middlewares/tokenAuthMiddleware');
+
+const multer = require('multer');
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 const router = express.Router();
 
@@ -8,7 +13,8 @@ router.route("/signup").post(validationMiddleware.validateSignup, User.signup);
 router.route("/login").post(validationMiddleware.validateLogin, User.login);
 router.route("/oAuth").post(User.oAuth);
 
-router.route("/UserProfil").post(User.updateUserProfile);
+router.route("/userProfileInfo").post(validateToken, User.userProfileInfo);
+router.route("/updateUserProfile").post(validateToken,upload.single('profile'), User.updateUserProfile);
 
 router.route('/forgotPassword').post(User.forgotPassword);
 router.route('/resetPassword').post(User.resetPassword);

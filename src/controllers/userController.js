@@ -4,12 +4,20 @@ const bcrypt = require("bcrypt");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+const AWS = require("aws-sdk");
+
 const hash = require("../utils/hashPassword");
 const jwt = require("jsonwebtoken");
 const jwtToken = require("../utils/jwtAuth");
 
 const { sendResponse } = require("../utils/responseHandler");
-const emailService = require('../utils/emailServices');
+const emailService = require("../utils/emailServices");
+
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
 
 const signup = async (req, res) => {
   try {
@@ -170,10 +178,50 @@ const oAuth = async (req, res) => {
   }
 };
 
+const userProfileInfo = async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) {
+    return sendResponse(res, {
+      status: 404,
+      type: "error",
+      message: "User id required.",
+    });
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      id: parseInt(userId),
+    },
+  });
+
+  if (!existingUser) {
+    return sendResponse(res, {
+      status: 404,
+      type: "error",
+      message: "User not found.",
+    });
+  }
+
+  sendResponse(res, {
+    status: 200,
+    type: "success",
+    data: {
+      name: existingUser.name,
+      email: existingUser.email,
+      phone: existingUser.phone,
+      profile_pic: existingUser.image,
+    },
+  });
+};
+
 const updateUserProfile = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { name, phone } = req.body;
+    const image = req.file;
+    const data = req.body;
+    const { userId } = req.query;
+    console.log("userid : ", userId);
+
+    const { name, phone } = data;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -187,13 +235,10 @@ const updateUserProfile = async (req, res) => {
       });
     }
 
-    if (email || phone) {
+    if (phone) {
       const existingUser = await prisma.user.findFirst({
         where: {
-          OR: [
-            { email: email, NOT: { id: parseInt(userId) } },
-            { phone: phone, NOT: { id: parseInt(userId) } },
-          ],
+          OR: [{ phone: phone, NOT: { id: parseInt(userId) } }],
         },
       });
 
@@ -206,13 +251,29 @@ const updateUserProfile = async (req, res) => {
       }
     }
 
+    if (image) {
+      const fileName = `profile-images/${userId}-${Date.now()}.jpg`;
+      const params = {
+        Bucket: process.env.S3_BUCKET_USERPROFILE,
+        Key: fileName,
+        Body: image.buffer,
+        ContentType: image.mimetype,
+      };
+      console.log(params.Body);
+      const s3Response = await s3.upload(params).promise();
+      image = s3Response.Location;
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(userId) },
       data: {
         ...(name && { name }),
         ...(phone && { phone }),
+        ...(image && { image: imageUrl }),
       },
     });
+
+    console.log("updatedUser : ", updatedUser);
 
     sendResponse(res, {
       status: 200,
@@ -264,7 +325,6 @@ const forgotPassword = async (req, res) => {
       type: "error",
       message: "Password reset link sent to your email.",
     });
-
   } catch (error) {
     console.error("Error in forgot password:", error);
     sendResponse(res, {
@@ -308,7 +368,6 @@ const resetPassword = async (req, res) => {
       success: true,
       message: "Password successfully reset.",
     });
-
   } catch (error) {
     if (error.name === "TokenExpiredError") {
       sendResponse(res, {
@@ -337,4 +396,12 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, oAuth, forgotPassword, resetPassword, updateUserProfile };
+module.exports = {
+  signup,
+  login,
+  oAuth,
+  forgotPassword,
+  resetPassword,
+  userProfileInfo,
+  updateUserProfile,
+};
