@@ -417,7 +417,7 @@ const getAllAddresses = async (req, res) => {
         message: "No addresses found for this user.",
       });
     }
-    
+
    const addresses = userAddresses
    .map((userAddress) => ({
      id: userAddress.address.id,
@@ -473,6 +473,8 @@ const forgotPassword = async (req, res) => {
     });
 
     const resetURL = `${process.env.FRONTEND_URL}?token=${resetToken}`;
+    console.log(resetURL);
+    
     await emailService.sendPasswordResetEmail(email, resetURL);
 
     sendResponse(res, {

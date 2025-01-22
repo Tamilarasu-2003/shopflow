@@ -17,6 +17,13 @@ const sendPasswordResetEmail = async (email, resetURL) => {
     subject: 'Password Reset Request',
     text: `You requested a password reset. Click the link below to reset your password: \n\n${resetURL}`,
   };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('Error sending reset email:', error);
+    throw new Error('Failed to send email');
+  }
   
   }
 
