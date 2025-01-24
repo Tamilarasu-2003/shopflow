@@ -1,16 +1,19 @@
 const Razorpay = require("razorpay");
-const emailService = require('../utils/emailServices');
+const emailService = require("../utils/emailServices");
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const razorpay = require("../utils/razorpay");
+const { sendResponse } = require("../utils/responseHandler");
 
 const createOrder = async (req, res) => {
   try {
     const { userId, items } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+    });
     if (!user) return res.status(404).json({ message: "User not found." });
 
     let totalAmount = 0;
@@ -41,12 +44,11 @@ const createOrder = async (req, res) => {
       include: {
         items: {
           include: {
-            product: true, 
+            product: true,
           },
         },
       },
     });
-    
 
     res.status(201).json({
       success: true,
@@ -64,9 +66,10 @@ const checkoutOrder = async (req, res) => {
     const { orderId } = req.query;
 
     console.log("orderId : ", orderId);
-    
 
-    const order = await prisma.order.findUnique({ where: { id: parseInt(orderId) } });
+    const order = await prisma.order.findUnique({
+      where: { id: parseInt(orderId) },
+    });
     if (!order || order.paymentStatus !== "PENDING")
       return res.status(400).json({ message: "Invalid order for checkout." });
 
@@ -84,7 +87,6 @@ const checkoutOrder = async (req, res) => {
       },
     });
     console.log("updatedOrder : ", updatedOrder);
-    
 
     res.status(200).json({
       success: true,
@@ -106,7 +108,12 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
       return res.status(400).json({ message: "Missing required parameters." });
     }
 
-    console.log("Verifying Payment:", { orderId, razorpayId, paymentId, paymentSignature });
+    console.log("Verifying Payment:", {
+      orderId,
+      razorpayId,
+      paymentId,
+      paymentSignature,
+    });
 
     const isValidSignature = Razorpay.validateWebhookSignature(
       razorpayId + "|" + paymentId,
@@ -120,17 +127,15 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
 
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(orderId) },
-      data: { paymentStatus: "COMPLETED", 
-        orderStatus : "CONFIRMED",
-        paymentId },
+      data: { paymentStatus: "COMPLETED", orderStatus: "CONFIRMED", paymentId },
     });
     const order = await prisma.order.findUnique({
-      where : {id : parseInt(orderId)}
-    })
+      where: { id: parseInt(orderId) },
+    });
 
     const user = await prisma.user.findUnique({
-      where : {id : parseInt(order.userId)}
-    })
+      where: { id: parseInt(order.userId) },
+    });
     await emailService.orderUpdateEmail(user.email, updatedOrder, "Placed");
 
     res.status(200).json({
@@ -144,7 +149,7 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
   }
 };
 
-const  DeleteOrderForFailedPayment = async (req, res) => {
+const DeleteOrderForFailedPayment = async (req, res) => {
   try {
     const { orderId } = req.query;
 
@@ -163,7 +168,9 @@ const  DeleteOrderForFailedPayment = async (req, res) => {
     }
 
     if (order.paymentStatus === "COMPLETED") {
-      return res.status(400).json({ message: "Cannot delete a completed order." });
+      return res
+        .status(400)
+        .json({ message: "Cannot delete a completed order." });
     }
 
     await prisma.order.delete({
@@ -180,17 +187,14 @@ const  DeleteOrderForFailedPayment = async (req, res) => {
   }
 };
 
-
 const getUserOrders = async (req, res) => {
   try {
     const { userId } = req.query;
 
-      const orders = await prisma.order.findMany({
-        where: { userId: parseInt(userId),
-          orderStatus : "CONFIRMED"
-         },
-        include: { items: { include: { product: true } } },
-      });
+    const orders = await prisma.order.findMany({
+      where: { userId: parseInt(userId), orderStatus: "CONFIRMED" },
+      include: { items: { include: { product: true } } },
+    });
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
@@ -201,10 +205,10 @@ const getUserOrders = async (req, res) => {
 
 const cancelOrder = async (req, res) => {
   try {
-    const { orderId } = req.query;
+    const { orderId,itemId } = req.query;
 
     const updatedOrder = await prisma.order.update({
-      where: { id: parseInt(orderId) },
+      where: { id: parseInt(orderId)},
       data: { orderStatus: "CANCELLED" },
     });
 
@@ -219,6 +223,62 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+const getOrderByOrderId = async (req, res) => {
+  try {
+    const { orderId } = req.query;
+
+
+    const order = await prisma.order.findUnique({
+      where: { id: parseInt(orderId) },
+      include: { items: { include: { product: true } } },
+    });
+    if(!order){
+      console.error("order not found")
+    }
+    console.log("order : ",order);
+    const date = new Date(order.orderDate).toISOString().split('T')[0];
+    const subCategoryId = order.items[0].product.subCategoryId;
+    const productId = order.items[0].product.id;
+
+    const similarProducts = await prisma.product.findMany({
+      where: { subCategoryId: parseInt(subCategoryId),
+        id: { not: parseInt(productId) },
+       },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        description: true,
+        actualPrice: true,
+        offerPrice: true,
+        discountPercentage: true,
+        subCategoryId: true,
+        rating: true,
+      },
+    });
+    
+    
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Order Fetched Successfully.",
+      data: {
+        orderDate : date,
+        orderStatus: order.orderStatus,
+        paymentStatus:order.paymentStatus,
+        totalAmount:order.totalAmount,
+        product: order.items,
+        similarProducts:similarProducts,
+
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching user orders:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
 module.exports = {
   createOrder,
   checkoutOrder,
@@ -226,4 +286,5 @@ module.exports = {
   verifyPaymentAndUpdateOrder,
   getUserOrders,
   cancelOrder,
+  getOrderByOrderId,
 };

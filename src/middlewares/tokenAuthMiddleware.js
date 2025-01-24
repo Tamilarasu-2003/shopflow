@@ -9,7 +9,7 @@ const { sendResponse } = require("../utils/responseHandler");
 const validateToken = async (req, res, next) => {
     const {userId} = req.query;
     let token = req.headers.authorization?.split(' ')[1];
-    console.log("token", token);
+    console.log("token:  :", token);
     
 
     if (!token){

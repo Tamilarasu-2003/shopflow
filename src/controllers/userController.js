@@ -220,16 +220,15 @@ const userProfileInfo = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     let image = req.file;
-    console.log("image : ",image);
-    
+    console.log("image : ", image);
+
     const data = req.body;
     const { userId } = req.query;
     console.log("userid : ", userId);
 
     const { name, phone } = data;
-    console.log("name : ",name);
-    console.log("phone : ",phone);
-    
+    console.log("name : ", name);
+    console.log("phone : ", phone);
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -289,7 +288,7 @@ const updateUserProfile = async (req, res) => {
       data: {
         ...updatedUser,
         profile_pic: updatedUser.image,
-      }
+      },
     });
   } catch (error) {
     console.error("Error updating user profile:", error);
@@ -306,6 +305,7 @@ const updateUserProfile = async (req, res) => {
 const addAddress = async (req, res) => {
   try {
     const { userId, street, city, state, country, zip, isPrimary } = req.query;
+    const booleanValue = isPrimary === "true" ? true : false;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -318,7 +318,7 @@ const addAddress = async (req, res) => {
       });
     }
 
-    if (isPrimary) {
+    if (booleanValue) {
       await prisma.addressOnUser.updateMany({
         where: { userId: parseInt(userId), isPrimary: true },
         data: { isPrimary: false },
@@ -326,14 +326,14 @@ const addAddress = async (req, res) => {
     }
 
     const newAddress = await prisma.address.create({
-      data: { street, city, state, country, postalCode : zip },
+      data: { street, city, state, country, postalCode: zip },
     });
 
     await prisma.addressOnUser.create({
       data: {
         userId: parseInt(userId),
         addressId: newAddress.id,
-        isPrimary: !!isPrimary,
+        isPrimary: booleanValue,
       },
     });
 
@@ -391,6 +391,81 @@ const makePrimaryAddress = async (req, res) => {
   }
 };
 
+const editAddress = async (req, res) => {
+  try {
+    const { userId, addressId, street, city, state, country, zip, isPrimary } = req.query;
+    const booleanValue = isPrimary === "true" ? true : false;
+
+    if (booleanValue) {
+      await prisma.addressOnUser.updateMany({
+        where: { userId: parseInt(userId), isPrimary: true },
+        data: { isPrimary: false },
+      });
+    }
+
+    await prisma.address.update({
+      where: { id: parseInt(addressId) },
+      data: { street, city, state, country, postalCode: zip },
+    });
+
+    await prisma.addressOnUser.update({
+      where: { id: parseInt(addressId) },
+      data: {
+        isPrimary: booleanValue,
+      },
+    });
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Address update successfully.",
+    });
+
+  } catch (error) {
+    console.error("Error adding address:", error);
+    sendResponse(res, {
+      status:500,
+      type: "error",
+      message: "Internal Server Error"
+    });
+  };
+};
+
+const deleteAddress = async (req, res) => {
+  try {
+    const { userId, addressId } = req.query;
+  const user = await prisma.user.findUnique({
+    where: { id: parseInt(userId) },
+  });
+
+  if (!user) {
+    return sendResponse(res, {
+      status: 404,
+      type: "error",
+      message: "User not found.",
+    });
+  }
+
+  await prisma.address.delete({
+    where: { id: parseInt(addressId) },
+  });
+  sendResponse(res, {
+    status:200,
+    type:"success",
+    message:"deletion successful...."
+  });
+
+  } catch (error) {
+    console.error("Error adding address:", error);
+    sendResponse(res, {
+      status:500,
+      type: "error",
+      message: "Internal Server Error"
+    });
+  }
+  
+};
+
 const getAllAddresses = async (req, res) => {
   try {
     const { userId } = req.query;
@@ -405,30 +480,35 @@ const getAllAddresses = async (req, res) => {
 
     const userAddresses = await prisma.addressOnUser.findMany({
       where: { userId: parseInt(userId) },
+      orderBy: {
+        address: { createdAt: "asc" },
+      },
       include: {
-        address: true, 
+        address: true,
       },
     });
 
     if (!userAddresses.length) {
       return sendResponse(res, {
-        status: 404,
-        type: "error",
+        status: 200,
+        type: "success",
         message: "No addresses found for this user.",
+        data: [],
       });
     }
 
-   const addresses = userAddresses
-   .map((userAddress) => ({
-     id: userAddress.address.id,
-     street: userAddress.address.street,
-     city: userAddress.address.city,
-     state: userAddress.address.state,
-     country: userAddress.address.country,
-     zip: userAddress.address.postalCode,
-     isPrimary: !!userAddress.isPrimary, 
-   }))
-   .sort((a, b) => b.isPrimary - a.isPrimary);
+    const addresses = userAddresses
+      .map((userAddress) => ({
+        id: userAddress.address.id,
+        userId: userAddresses[0].userId,
+        street: userAddress.address.street,
+        city: userAddress.address.city,
+        state: userAddress.address.state,
+        country: userAddress.address.country,
+        zip: userAddress.address.postalCode,
+        isPrimary: !!userAddress.isPrimary,
+      }))
+      .sort((a, b) => b.isPrimary - a.isPrimary);
 
     sendResponse(res, {
       status: 200,
@@ -446,7 +526,6 @@ const getAllAddresses = async (req, res) => {
     });
   }
 };
-
 
 const forgotPassword = async (req, res) => {
   console.log("forgot password");
@@ -474,7 +553,7 @@ const forgotPassword = async (req, res) => {
 
     const resetURL = `${process.env.FRONTEND_URL}?token=${resetToken}`;
     console.log(resetURL);
-    
+
     await emailService.sendPasswordResetEmail(email, resetURL);
 
     sendResponse(res, {
@@ -564,4 +643,6 @@ module.exports = {
   addAddress,
   makePrimaryAddress,
   getAllAddresses,
+  editAddress,
+  deleteAddress,
 };

@@ -10,5 +10,5 @@ router.post("/verify", order.verifyPaymentAndUpdateOrder);
 router.post("/failedVerify", order.DeleteOrderForFailedPayment);
 router.get("/getUserOrder", order.getUserOrders);
 router.put("/cancelOrder", order.cancelOrder);
-
+router.get("/getOrderById", order.getOrderByOrderId);
 module.exports = router;
