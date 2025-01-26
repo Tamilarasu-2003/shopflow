@@ -8,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id          Int             @id @default(autoincrement())
-  name        String?
-  email       String          @unique
-  password    String
-  image String?
-  phone       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  googleId    String?         @unique
-  cart        Cart?
-  orders      Order[]
-  wishlist    Wishlist?
-  addresses   AddressOnUser[]
+  id        Int             @id @default(autoincrement())
+  name      String?
+  email     String          @unique
+  password  String
+  image     String?
+  phone     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  googleId  String?         @unique
+  cart      Cart?
+  orders    Order[]
+  wishlist  Wishlist?
+  addresses AddressOnUser[]
 }
 
 model Address {
@@ -150,13 +150,16 @@ model Order {
 }
 
 model OrderedItem {
-  id        Int     @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int     @default(1)
-  price     Float
-  order     Order   @relation(fields: [orderId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
+  id            Int         @id @default(autoincrement())
+  orderId       Int
+  productId     Int
+  quantity      Int         @default(1)
+  price         Float
+  paymentId     String?
+  orderStatus   String      @default("PENDING")
+  paymentStatus OrderStatus @default(PENDING)
+  order         Order       @relation(fields: [orderId], references: [id])
+  product       Product     @relation(fields: [productId], references: [id])
 }
 
 enum OrderStatus {
