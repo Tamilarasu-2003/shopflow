@@ -87,16 +87,22 @@ const createPaymentIntent = async (req, res) => {
   const { userId, totalAmount, currency = "usd" } = req.body;
 
   try {
+    console.log("start createPaymentIntent");
+    
     // Step 1: Create a new customer
     const customer = await stripe.customers.create({
       metadata: { userId: userId || "guest" },
     });
+    console.log("step 1 createPaymentIntent");
+
 
     // Step 2: Create an ephemeral key for the customer
     const ephemeralKey = await stripe.ephemeralKeys.create(
       { customer: customer.id },
       { apiVersion: "2024-12-18.acacia" }
     );
+    console.log("step 2 createPaymentIntent");
+    
 
     // Step 3: Create a payment intent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -109,6 +115,8 @@ const createPaymentIntent = async (req, res) => {
         enabled: true, // Enables automatic payment methods for flexibility
       },
     });
+    console.log("step 3 createPaymentIntent");
+
 
     // Step 4: Respond with payment details
     res.status(200).json({
@@ -120,6 +128,8 @@ const createPaymentIntent = async (req, res) => {
       status: paymentIntent.status,
       publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     });
+    console.log("step 4 createPaymentIntent");
+
   } catch (error) {
     console.error("Error creating payment intent:", error.message);
     res.status(500).send({ error: "Failed to create payment intent" });
