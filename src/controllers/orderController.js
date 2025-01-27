@@ -85,19 +85,40 @@ const createOrder = async (req, res) => {
 
 const createPaymentIntent = async (req, res) => {
   const { userId, totalAmount, currency = "usd" } = req.body;
+
   try {
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalAmount * 100,
-      currency: currency,
-      description: "ShopFlow Order Payment",
+    // Step 1: Create a new customer
+    const customer = await stripe.customers.create({
       metadata: { userId: userId || "guest" },
     });
 
+    // Step 2: Create an ephemeral key for the customer
+    const ephemeralKey = await stripe.ephemeralKeys.create(
+      { customer: customer.id },
+      { apiVersion: "2024-12-18.acacia" }
+    );
+
+    // Step 3: Create a payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalAmount * 100, // Convert to smallest currency unit (e.g., cents for USD)
+      currency: currency,
+      customer: customer.id,
+      description: "ShopFlow Order Payment",
+      metadata: { userId: userId || "guest" },
+      automatic_payment_methods: {
+        enabled: true, // Enables automatic payment methods for flexibility
+      },
+    });
+
+    // Step 4: Respond with payment details
     res.status(200).json({
-      clientSecret: paymentIntent.client_secret,
+      paymentIntent: paymentIntent.client_secret,
+      ephemeralKey: ephemeralKey.secret,
+      customer: customer.id,
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
       status: paymentIntent.status,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     });
   } catch (error) {
     console.error("Error creating payment intent:", error.message);
