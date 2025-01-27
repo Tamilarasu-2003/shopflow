@@ -137,12 +137,16 @@ const createPaymentIntent = async (req, res) => {
 };
 
 const confirmPayment = async (req, res) => {
+  console.log("confirmPayment start");
+  
   const { paymentIntentId, paymentMethodId } = req.body;
 
   try {
     const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
       payment_method: paymentMethodId,
     });
+  console.log("confirmPayment step 1");
+
 
     if (paymentIntent.status === "succeeded") {
       await prisma.orderedItem.updateMany({
@@ -156,6 +160,9 @@ const confirmPayment = async (req, res) => {
         },
       });
 
+  console.log("confirmPayment step 2");
+
+
       await prisma.order.update({
         where: { id: parseInt(orderId) },
         data: {
@@ -165,17 +172,25 @@ const confirmPayment = async (req, res) => {
         },
       });
 
+  console.log("confirmPayment step 3");
+
+
       const order = await prisma.order.findUnique({
         where: { id: parseInt(orderId) },
         include: {
           items: true,
         },
       });
+  console.log("confirmPayment step 4");
+
 
       const user = await prisma.user.findUnique({
         where: { id: parseInt(order.userId) },
       });
       await emailService.orderUpdateEmail(user.email, order, "Placed");
+
+  console.log("confirmPayment step 5");
+
 
       res.status(200).json({
         success: true,
@@ -342,6 +357,10 @@ const DeleteOrderForFailedPayment = async (req, res) => {
         .status(400)
         .json({ message: "Cannot delete a completed order." });
     }
+
+    await prisma.orderedItem.deleteMany({
+      where : {orderId: parseInt(orderId)}
+    })
 
     await prisma.order.delete({
       where: { id: parseInt(orderId) },
