@@ -14,6 +14,6 @@ router.put("/cancelOrder", order.cancelOrder);
 router.get("/getOrderById", order.getOrderByOrderId);
 
 router.post("/createPaymentIntent", order.createPaymentIntent);
-router.post("confirmPayment", order.confirmPayment);
+router.post("/confirmPayment", order.confirmPayment);
 
 module.exports = router;
