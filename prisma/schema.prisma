@@ -7,6 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Carousel {
+  id Int @id @default(autoincrement())
+  image String
+  type Type
+  type_id Int
+  name String @default("nill")
+}
+
 model User {
   id        Int             @id @default(autoincrement())
   name      String?
@@ -166,4 +174,10 @@ enum OrderStatus {
   PENDING
   COMPLETED
   CANCELLED
+}
+
+enum Type {
+  PRODUCT
+  CATEGORY
+  SUBCATEGORY
 }

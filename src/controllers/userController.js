@@ -129,7 +129,7 @@ const login = async (req, res) => {
 const oAuth = async (req, res) => {
   try {
     const { id, name, email, image } = req.body;
-    console.log(req.body);
+    console.log("body : ",req.body);
 
     // const email = emails[0]?.value;
     // const profilePicture = photos[0]?.value;

@@ -89,38 +89,32 @@ const createPaymentIntent = async (req, res) => {
   try {
     console.log("start createPaymentIntent");
     
-    // Step 1: Create a new customer
     const customer = await stripe.customers.create({
       metadata: { userId: userId || "guest" },
     });
     console.log("step 1 createPaymentIntent");
 
-
-    // Step 2: Create an ephemeral key for the customer
     const ephemeralKey = await stripe.ephemeralKeys.create(
       { customer: customer.id },
       { apiVersion: "2024-12-18.acacia" }
     );
     console.log("step 2 createPaymentIntent");
     
-
-    // Step 3: Create a payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalAmount * 100, // Convert to smallest currency unit (e.g., cents for USD)
+      amount: totalAmount * 100,
       currency: currency,
       customer: customer.id,
       description: "ShopFlow Order Payment",
       metadata: { userId: userId || "guest" },
       automatic_payment_methods: {
-        enabled: true, // Enables automatic payment methods for flexibility
+        enabled: true, 
       },
     });
     console.log("step 3 createPaymentIntent");
 
-
-    // Step 4: Respond with payment details
     res.status(200).json({
       paymentIntent: paymentIntent.client_secret,
+      paymentIntentId:paymentIntent.id,
       ephemeralKey: ephemeralKey.secret,
       customer: customer.id,
       amount: paymentIntent.amount,
@@ -139,12 +133,11 @@ const createPaymentIntent = async (req, res) => {
 const confirmPayment = async (req, res) => {
   console.log("confirmPayment start");
   
-  const { paymentIntentId, paymentMethodId } = req.body;
+  const { orderId, paymentIntentId, paymentMethodId } = req.body;
+
 
   try {
-    const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
-      payment_method: paymentMethodId,
-    });
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
   console.log("confirmPayment step 1");
 
 
@@ -156,7 +149,7 @@ const confirmPayment = async (req, res) => {
         data: {
           paymentStatus: "COMPLETED",
           orderStatus: "CONFIRMED",
-          paymentId,
+
         },
       });
 
@@ -168,7 +161,6 @@ const confirmPayment = async (req, res) => {
         data: {
           paymentStatus: "COMPLETED",
           orderStatus: "CONFIRMED",
-          paymentId,
         },
       });
 
@@ -210,15 +202,36 @@ const confirmPayment = async (req, res) => {
 
 const paymentMethodId = async (req, res) => {
   const { paymentIntentId } = req.query;
+
+  // Validate paymentIntentId
+  if (!paymentIntentId) {
+    return res.status(400).json({ error: "Missing paymentIntentId in request" });
+  }
+
+  console.log("Received paymentIntentId:", paymentIntentId);
+
   try {
+    // Retrieve the payment intent using the ID
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Extract payment method ID
     const paymentMethodId = paymentIntent.payment_method;
+
     res.status(200).json({ paymentMethodId });
   } catch (error) {
     console.error("Error retrieving payment intent:", error.message);
+
+    // Handle specific Stripe errors if needed
+    if (error.type === "StripeInvalidRequestError") {
+      return res
+        .status(400)
+        .json({ error: "Invalid paymentIntentId or request parameters" });
+    }
+
     res.status(500).json({ error: "Failed to retrieve payment details" });
   }
-}
+};
+
 
 const checkoutOrder = async (req, res) => {
   try {
@@ -346,7 +359,7 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
   }
 };
 
-const DeleteOrderForFailedPayment = async (req, res) => {
+const failedPayment = async (req, res) => {
   try {
     const { orderId } = req.query;
 
@@ -356,31 +369,56 @@ const DeleteOrderForFailedPayment = async (req, res) => {
 
     console.log("Deleting failed order:", { orderId });
 
-    const order = await prisma.order.findUnique({
+    const userOrder = await prisma.order.findUnique({
       where: { id: parseInt(orderId) },
     });
 
-    if (!order) {
+    if (!userOrder) {
       return res.status(404).json({ message: "Order not found." });
     }
 
-    if (order.paymentStatus === "COMPLETED") {
+    if (userOrder.paymentStatus === "COMPLETED") {
       return res
         .status(400)
         .json({ message: "Cannot delete a completed order." });
     }
 
-    await prisma.orderedItem.deleteMany({
-      where : {orderId: parseInt(orderId)}
-    })
-
-    await prisma.order.delete({
-      where: { id: parseInt(orderId) },
+    await prisma.orderedItem.updateMany({
+      where: {
+        orderId: parseInt(orderId),
+      },
+      data: {
+        paymentStatus: "FAILED",
+        orderStatus: "FAILED",
+        paymentId,
+      },
     });
+
+    await prisma.order.update({
+      where: { id: parseInt(orderId) },
+      data: {
+        paymentStatus: "FAILED",
+        orderStatus: "FAILED",
+        paymentId,
+      },
+    });
+
+    const order = await prisma.order.findUnique({
+      where: { id: parseInt(orderId) },
+      include: {
+        items: true,
+      },
+    });
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(order.userId) },
+    });
+    await emailService.orderUpdateEmail(user.email, order, "Placed");
 
     res.status(200).json({
       success: true,
-      message: "Order deleted successfully due to failed payment.",
+      message: "Payment verified and order updated.",
+      order: order,
     });
   } catch (error) {
     console.error("Error deleting failed order:", error);
@@ -521,7 +559,7 @@ const getOrderByOrderId = async (req, res) => {
 module.exports = {
   createOrder,
   checkoutOrder,
-  DeleteOrderForFailedPayment,
+  failedPayment,
   verifyPaymentAndUpdateOrder,
   getUserOrders,
   cancelOrder,

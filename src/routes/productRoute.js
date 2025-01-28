@@ -4,6 +4,7 @@ const { validateSearchQuery } = require("../middlewares/validateSearchQuery");
 
 const router = express.Router();
 
+router.route("/getCarousel").get(products.getCarousel);
 router.route("/getAllProducts").get(products.getAllProducts);
 router.route("/flashDealProducts").get(products.getFlashDealProducts);
 router.route("/filteredProducts").get(products.getFilteredProducts);

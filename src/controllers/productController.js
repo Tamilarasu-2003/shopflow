@@ -31,6 +31,35 @@ const client = new Client({
 // const { parseQuery } = require("../utils/searchResolve");
 const { sendResponse } = require("../utils/responseHandler");
 
+const getCarousel = async (req, res) => {
+  try {
+    const carousel = await prisma.carousel.findMany();
+    if(!carousel){
+      sendResponse(res, {
+        status: 404,
+        type: error,
+        message: "carousel not found...",
+      });
+    }
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "carousel data fetched successfully..",
+      data: carousel
+    });
+  } catch (error) {
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error",
+      data: {
+        error: error.message,
+      },
+    });
+  }
+}
+
 const getAllProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -481,10 +510,12 @@ const getCategory = async (req, res) => {
       select: {
         name: true,
         id: true,
+        image: true,
         subCategories: {
           select: {
             name: true,
             id: true,
+            
           },
         },
       },
@@ -820,4 +851,5 @@ module.exports = {
   getLimitedTimeOffers,
   getTopRatedProducts,
   getClearanceSaleProducts,
+  getCarousel,
 };
