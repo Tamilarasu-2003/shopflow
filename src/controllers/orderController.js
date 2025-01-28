@@ -413,6 +413,7 @@ const getUserOrders = async (req, res) => {
         status: item.orderStatus,
         quantity: item.quantity,
         productName: item.product.name,
+        productId: item.product.id,
         offerPrice: item.product.offerPrice,
         image: item.product.image,
       })),
