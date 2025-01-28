@@ -208,6 +208,18 @@ const confirmPayment = async (req, res) => {
   }
 };
 
+const paymentMethodId = async (req, res) => {
+  const { paymentIntentId } = req.query;
+  try {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentMethodId = paymentIntent.payment_method;
+    res.status(200).json({ paymentMethodId });
+  } catch (error) {
+    console.error("Error retrieving payment intent:", error.message);
+    res.status(500).json({ error: "Failed to retrieve payment details" });
+  }
+}
+
 const checkoutOrder = async (req, res) => {
   try {
     const { orderId } = req.query;
@@ -516,4 +528,5 @@ module.exports = {
   getOrderByOrderId,
   createPaymentIntent,
   confirmPayment,
+  paymentMethodId,
 };
