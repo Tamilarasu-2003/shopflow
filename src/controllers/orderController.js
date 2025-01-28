@@ -555,6 +555,62 @@ const getOrderByOrderId = async (req, res) => {
   }
 };
 
+const getOrderForCheckout = async (req, res) => {
+  const {orderId} = req.query;
+  if (!orderId || isNaN(orderId)) {
+    return sendResponse(res, {
+      status: 400,
+      type: "error",
+      message: "Invalid or missing orderId.",
+    });
+  }
+  
+  try {
+    const orderData = await prisma.order.findUnique({
+      where: {
+        id: parseInt(orderId),
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+    
+    
+
+    if(!orderData){
+      sendResponse(res, {
+        status:404,
+        type: "error",
+        message: "no order found..",
+      })
+    }
+
+    console.log("orderData : ",orderData);
+
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message :"order fetched successfully..",
+      data : orderData || "null",
+
+    })
+    
+  } catch (error) {
+    console.error(error);
+    sendResponse(res, {
+      status:500,
+      type:error,
+      message : "Error on getOrderForCheckout..",
+    })
+    
+  }
+}
+
 
 module.exports = {
   createOrder,
@@ -567,4 +623,5 @@ module.exports = {
   createPaymentIntent,
   confirmPayment,
   paymentMethodId,
+  getOrderForCheckout,
 };

@@ -12,6 +12,7 @@ router.post("/failedPayment", order.failedPayment);
 router.get("/getUserOrder", order.getUserOrders);
 router.put("/cancelOrder", order.cancelOrder);
 router.get("/getOrderById", order.getOrderByOrderId);
+router.route('/getOrderForCheckout').get(order.getOrderForCheckout);
 
 router.post("/createPaymentIntent", order.createPaymentIntent);
 router.post("/confirmPayment", order.confirmPayment);
