@@ -124,6 +124,111 @@ const addItemToCart = async (req, res) => {
   }
 };
 
+const addItemsToCart = async (req, res) => {
+  const { userId, items } = req.body; // Expecting `items` as an array of { productId, quantity }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return sendResponse(res, {
+      status: 400,
+      type: "error",
+      message: "Invalid or missing items array.",
+    });
+  }
+
+  try {
+    const productIds = items.map((item) => parseInt(item.productId));
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+    });
+
+    if (products.length !== items.length) {
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "One or more products not found.",
+      });
+    }
+
+    for (const item of items) {
+      const product = products.find((p) => p.id === parseInt(item.productId));
+      if (!product || item.quantity > product.stock) {
+        return sendResponse(res, {
+          status: 400,
+          type: "error",
+          message: `Requested quantity for product ID ${item.productId} exceeds available stock.`,
+        });
+      }
+    }
+
+    let cart = await prisma.cart.findUnique({
+      where: { userId: parseInt(userId) },
+      include: { items: true },
+    });
+
+    if (!cart) {
+      cart = await prisma.cart.create({
+        data: {
+          userId: parseInt(userId),
+          totalAmount: 0,
+        },
+      });
+    }
+
+    let updatedTotalAmount = cart.totalAmount;
+
+    for (const item of items) {
+      const product = products.find((p) => p.id === parseInt(item.productId));
+      const itemTotalPrice = product.offerPrice * parseInt(item.quantity);
+
+      const existingCartItem = cart.items.find(
+        (cartItem) => cartItem.productId === product.id
+      );
+
+      if (existingCartItem) {
+        await prisma.cartItem.update({
+          where: { id: existingCartItem.id },
+          data: {
+            quantity: existingCartItem.quantity + parseInt(item.quantity),
+            totalPrice: existingCartItem.totalPrice + itemTotalPrice,
+          },
+        });
+
+        updatedTotalAmount += itemTotalPrice;
+      } else {
+        await prisma.cartItem.create({
+          data: {
+            cartId: cart.id,
+            productId: product.id,
+            quantity: parseInt(item.quantity),
+            totalPrice: itemTotalPrice,
+          },
+        });
+
+        updatedTotalAmount += itemTotalPrice;
+      }
+    }
+
+    await prisma.cart.update({
+      where: { id: cart.id },
+      data: { totalAmount: updatedTotalAmount },
+    });
+
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "Items added to cart successfully.",
+    });
+  } catch (error) {
+    console.error("Error adding items to cart:", error);
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal server error.",
+    });
+  }
+};
+
+
 const viewCart = async (req, res) => {
   const { userId } = req.query;
 

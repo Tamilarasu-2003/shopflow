@@ -7,6 +7,9 @@ const { sendResponse } = require("../utils/responseHandler");
 
 
 const validateToken = async (req, res, next) => {
+    try {
+        
+   
     const {userId} = req.query;
     let token = req.headers.authorization?.split(' ')[1];
     console.log("token:  :", token);
@@ -52,6 +55,10 @@ const validateToken = async (req, res, next) => {
     req.user = user;
 
     return next();
+} catch (error) {
+       console.log(error);
+         
+}
 
 
 }

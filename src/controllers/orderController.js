@@ -294,6 +294,8 @@ const checkoutOrder = async (req, res) => {
 const verifyPaymentAndUpdateOrder = async (req, res) => {
   try {
     const { orderId, razorpayId, paymentId, paymentSignature } = req.query;
+    console.log(orderId, razorpayId, paymentId, paymentSignature);
+    
 
     if (!orderId || !razorpayId || !paymentId || !paymentSignature) {
       return res.status(400).json({ message: "Missing required parameters." });
