@@ -255,7 +255,7 @@ const checkoutOrder = async (req, res) => {
 
     const razorpayOrder = await razorpay.orders.create({
       amount: Math.ceil(order.totalAmount * 100),
-      currency: "INR",
+      currency: "USD",
       receipt: `order_rcpt_${Date.now()}`,
     });
 

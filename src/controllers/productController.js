@@ -607,7 +607,7 @@ const getProductsBySubCategory = async (req, res) => {
   try {
     const { subCategoryId } = req.query;
     if (!subCategoryId || isNaN(subCategoryId)) {
-      sendResponse(res, {
+      return sendResponse(res, {
         status: 400,
         type: "error",
         message: "Invalid or missing subCategoryId.",
@@ -628,7 +628,7 @@ const getProductsBySubCategory = async (req, res) => {
       },
     });
     if (!Products) {
-      sendResponse(res, {
+      return sendResponse(res, {
         status: 404,
         type: "error",
         message: "No Products Found.",
