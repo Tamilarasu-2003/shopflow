@@ -1,4 +1,7 @@
 exports.sendResponse = (res, options = {}) => {
+  try {
+    
+  
   const {
     status = 200,
     type = "success",
@@ -22,4 +25,8 @@ exports.sendResponse = (res, options = {}) => {
   if (validationErrors) response.validationErrors = validationErrors;
 
   res.status(status).json(response);
+} catch (error) {
+    console.error(error.message);
+    
+}
 };
