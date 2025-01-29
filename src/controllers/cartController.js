@@ -257,7 +257,7 @@ const viewCart = async (req, res) => {
   });
 
   if (!cart) {
-    sendResponse(res, {
+    return sendResponse(res, {
       status: 404,
       type: "error",
       message: "cart is empty.",
