@@ -461,7 +461,7 @@ const getUserOrders = async (req, res) => {
       orderDate: new Date(order.createdAt).toISOString().split("T")[0],
       total: order.totalAmount,
       items: order.items.map((item) => ({
-        orderId: item.id,
+        orderId: order.id,
         status: item.orderStatus,
         quantity: item.quantity,
         productName: item.product.name,

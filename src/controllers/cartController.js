@@ -4,7 +4,8 @@ const prisma = new PrismaClient();
 const { sendResponse } = require("../utils/responseHandler");
 
 const addItemToCart = async (req, res) => {
-  const { userId, productId, quantity } = req.query;
+  const { productId, quantity } = req.query;
+  const userId  = req.user.id;
 
   try {
     const product = await prisma.product.findUnique({
@@ -125,7 +126,8 @@ const addItemToCart = async (req, res) => {
 };
 
 const addItemsToCart = async (req, res) => {
-  const { userId, items } = req.body; // Expecting `items` as an array of { productId, quantity }
+  const { items } = req.body;
+  const userId  = req.user.id;
 
   if (!Array.isArray(items) || items.length === 0) {
     return sendResponse(res, {
@@ -230,7 +232,7 @@ const addItemsToCart = async (req, res) => {
 
 
 const viewCart = async (req, res) => {
-  const { userId } = req.query;
+  const userId  = req.user.id;
 
   const user = await prisma.user.findUnique({
     where: { id: parseInt(userId) },
@@ -274,7 +276,8 @@ const viewCart = async (req, res) => {
 
 const deleteFromCart = async (req, res) => {
   try {
-    const { userId, productId } = req.query;
+    const { productId } = req.query;
+    const userId  = req.user.id;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -354,7 +357,8 @@ const deleteFromCart = async (req, res) => {
 
 const updateCartItemCount = async (req, res) => {
   try {
-    const { userId, productId, operation } = req.query;
+    const userId  = req.user.id;
+    const { productId, operation } = req.query;
 
     if (!["increase", "decrease"].includes(operation)) {
       return sendResponse(res, {

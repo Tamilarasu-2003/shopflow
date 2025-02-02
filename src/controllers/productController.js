@@ -1,6 +1,8 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+const { sendResponse } = require("../utils/responseHandler");
+
 // const { Client } = require("@elastic/elasticsearch");
 // const elasticClient = new Client({ node: "http://localhost:9200" });
 
@@ -28,8 +30,6 @@ const client = new Client({
   }),
 });
 
-// const { parseQuery } = require("../utils/searchResolve");
-const { sendResponse } = require("../utils/responseHandler");
 
 const getCarousel = async (req, res) => {
   try {

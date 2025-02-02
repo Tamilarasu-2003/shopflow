@@ -12,7 +12,6 @@ const validateToken = async (req, res, next) => {
    
     const {userId} = req.query;
     let token = req.headers.authorization?.split(' ')[1];
-    console.log("token:  :", token);
     
 
     if (!token){
@@ -24,11 +23,6 @@ const validateToken = async (req, res, next) => {
     };
     
     const payload = jwt.verify(token, process.env.JWT_TOKEN)
-    console.log("id ",userId);
-    console.log("payloadID ",payload.id );
-    
-    
-    
 
     const user = await prisma.user.findUnique({
         where: { id: payload.id }
@@ -53,6 +47,8 @@ const validateToken = async (req, res, next) => {
     }
 
     req.user = user;
+    console.log("req.user.id : ",req.user.id);
+    
 
     return next();
 } catch (error) {

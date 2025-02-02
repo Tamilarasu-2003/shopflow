@@ -5,7 +5,9 @@ const { sendResponse } = require("../utils/responseHandler");
 
 const addOrRemoveItem = async (req, res) => {
   try {
-    const { userId, productId } = req.query;
+    const { productId } = req.query;
+    const userId  = req.user.id;
+
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
     });
@@ -95,7 +97,7 @@ const addOrRemoveItem = async (req, res) => {
 
 const viewWishlist = async (req, res) => {
   try {
-    const { userId } = req.query;
+    const userId  = req.user.id;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },

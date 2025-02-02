@@ -131,9 +131,6 @@ const oAuth = async (req, res) => {
     const { id, name, email, image } = req.body;
     console.log("body : ",req.body);
 
-    // const email = emails[0]?.value;
-    // const profilePicture = photos[0]?.value;
-
     let user = await prisma.user.findUnique({
       where: { googleId: id },
     });
@@ -151,16 +148,19 @@ const oAuth = async (req, res) => {
         },
       });
     }
+
     const existingUser = await prisma.user.findUnique({
       where: {
         email: email,
       },
     });
+
     let token = await jwtToken.createToken({
       id: existingUser.id,
       name: existingUser.name,
       email: existingUser.email,
     });
+
     const { password: _, ...userWithoutPassword } = existingUser;
 
     sendResponse(res, {
@@ -182,14 +182,15 @@ const oAuth = async (req, res) => {
 };
 
 const userProfileInfo = async (req, res) => {
-  const { userId } = req.query;
+  const userId  = req.user.id;
+
   if (!userId) {
     return sendResponse(res, {
       status: 404,
       type: "error",
       message: "User id required.",
     });
-  }
+  };
 
   const existingUser = await prisma.user.findUnique({
     where: {
@@ -223,8 +224,7 @@ const updateUserProfile = async (req, res) => {
     console.log("image : ", image);
 
     const data = req.body;
-    const { userId } = req.query;
-    console.log("userid : ", userId);
+    const userId  = req.user.id;
 
     const { name, phone } = data;
     console.log("name : ", name);
@@ -352,7 +352,8 @@ const addAddress = async (req, res) => {
 
 const makePrimaryAddress = async (req, res) => {
   try {
-    const { userId, addressId } = req.query;
+    const { addressId } = req.query;
+    const userId  = req.user.id;
 
     const addressOnUser = await prisma.addressOnUser.findFirst({
       where: {
@@ -393,7 +394,8 @@ const makePrimaryAddress = async (req, res) => {
 
 const editAddress = async (req, res) => {
   try {
-    const { userId, addressId, street, city, state, country, zip, isPrimary } = req.query;
+    const { addressId, street, city, state, country, zip, isPrimary } = req.query;
+    const userId  = req.user.id;
     const booleanValue = isPrimary === "true" ? true : false;
 
     if (booleanValue) {
@@ -433,7 +435,8 @@ const editAddress = async (req, res) => {
 
 const deleteAddress = async (req, res) => {
   try {
-    const { userId, addressId } = req.query;
+    const { addressId } = req.query;
+    const userId  = req.user.id;
   const user = await prisma.user.findUnique({
     where: { id: parseInt(userId) },
   });
@@ -468,7 +471,7 @@ const deleteAddress = async (req, res) => {
 
 const getAllAddresses = async (req, res) => {
   try {
-    const { userId } = req.query;
+    const userId  = req.user.id;
 
     if (!userId) {
       return sendResponse(res, {
