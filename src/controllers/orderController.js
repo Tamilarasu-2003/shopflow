@@ -201,9 +201,10 @@ const confirmPayment = async (req, res) => {
 };
 
 const paymentMethodId = async (req, res) => {
+  console.log("payment method id......!");
+  
   const { paymentIntentId } = req.query;
 
-  // Validate paymentIntentId
   if (!paymentIntentId) {
     return res.status(400).json({ error: "Missing paymentIntentId in request" });
   }
@@ -211,17 +212,14 @@ const paymentMethodId = async (req, res) => {
   console.log("Received paymentIntentId:", paymentIntentId);
 
   try {
-    // Retrieve the payment intent using the ID
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-    // Extract payment method ID
     const paymentMethodId = paymentIntent.payment_method;
 
     res.status(200).json({ paymentMethodId });
   } catch (error) {
     console.error("Error retrieving payment intent:", error.message);
 
-    // Handle specific Stripe errors if needed
     if (error.type === "StripeInvalidRequestError") {
       return res
         .status(400)
