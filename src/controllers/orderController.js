@@ -480,7 +480,7 @@ const failedPayment = async (req, res) => {
 
 const getUserOrders = async (req, res) => {
   try {
-    const { userId } = req.query;
+    const userId  = req.user.id;
 
     const orders = await prisma.order.findMany({
       where: {

@@ -6,16 +6,16 @@ const router = express.Router();
 
 router.post("/createOrder", validateToken, order.createOrder);
 
-router.post("/checkoutOrder", order.checkoutOrder);
-router.post("/verify", order.verifyPaymentAndUpdateOrder);
-router.post("/failedPayment", order.failedPayment);
-router.get("/getUserOrder", order.getUserOrders);
-router.put("/cancelOrder", order.cancelOrder);
-router.get("/getOrderById", order.getOrderByOrderId);
-router.route('/getOrderForCheckout').get(order.getOrderForCheckout);
+router.post("/checkoutOrder",validateToken, order.checkoutOrder);
+router.post("/verify",validateToken, order.verifyPaymentAndUpdateOrder);
+router.post("/failedPayment",validateToken, order.failedPayment);
+router.get("/getUserOrder",validateToken, order.getUserOrders);
+router.put("/cancelOrder",validateToken, order.cancelOrder);
+router.get("/getOrderById",validateToken, order.getOrderByOrderId);
+router.route('/getOrderForCheckout').get(validateToken,order.getOrderForCheckout);
 
 router.post("/createPaymentIntent",validateToken, order.createPaymentIntent);
-router.post("/confirmPayment", order.confirmPayment);
-router.get('/paymentMethodId', order.paymentMethodId);
+router.post("/confirmPayment",validateToken, order.confirmPayment);
+router.get('/paymentMethodId',validateToken, order.paymentMethodId);
 
 module.exports = router;

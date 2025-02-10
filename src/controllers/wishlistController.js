@@ -6,7 +6,11 @@ const { sendResponse } = require("../utils/responseHandler");
 const addOrRemoveItem = async (req, res) => {
   try {
     const { productId } = req.query;
+    console.log("productId : ",productId);
+
     const userId  = req.user.id;
+    console.log("userId : ",userId);
+    
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -147,14 +151,14 @@ const viewWishlist = async (req, res) => {
       sendResponse(res, {
         status: 404,
         type: "error",
-        message: "cart is empty.",
+        message: "wishlist is empty.",
       });
     }
 
     sendResponse(res, {
       status: 200,
       type: "success",
-      message: "cart items fetched successfully",
+      message: "wishlist items fetched successfully",
       data: wishlist,
     });
   } catch (error) {

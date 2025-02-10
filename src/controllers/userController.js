@@ -298,8 +298,9 @@ const updateUserProfile = async (req, res) => {
 
 const addAddress = async (req, res) => {
   try {
-    const { userId, street, city, state, country, zip, isPrimary } = req.query;
+    const { street, city, state, country, zip, isPrimary } = req.query;
     const booleanValue = isPrimary === "true" ? true : false;
+    const userId  = req.user.id;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
