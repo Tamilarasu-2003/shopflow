@@ -10,20 +10,20 @@ const resetToken = async (payload) => {
   return token;
 };
 
-const verifyToken = async (token) => {
-  await jwt.verify(token, process.env.JWT_TOKEN, (err, user) => {
-    if (err) {
-      return sendResponse(res, {
-        status: 403,
-        type: "error",
-        message: "Invalid or expired token",
-      });
-    }
-    console.log("user",user);
+// const verifyToken = async (token) => {
+//   await jwt.verify(token, process.env.JWT_TOKEN, (err, user) => {
+//     if (err) {
+//       return sendResponse(res, {
+//         status: 403,
+//         type: "error",
+//         message: "Invalid or expired token",
+//       });
+//     }
+//     console.log("user",user);
     
-    return user;
-  });
+//     return user;
+//   });
   
-};
+// };
 
-module.exports = { createToken, verifyToken, resetToken };
+module.exports = { createToken, resetToken };

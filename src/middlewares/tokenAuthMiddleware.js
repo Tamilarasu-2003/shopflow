@@ -10,7 +10,7 @@ const validateToken = async (req, res, next) => {
     try {
         
    
-    const {userId} = req.query;
+    // const {userId} = req.query;
     let token = req.headers.authorization?.split(' ')[1];
     
 
@@ -36,15 +36,15 @@ const validateToken = async (req, res, next) => {
         });
     } 
 
-    const requestedUserId = parseInt(userId, 10);
+    // const requestedUserId = parseInt(userId, 10);
 
-    if (isNaN(requestedUserId) || requestedUserId !== payload.id) {
-        return sendResponse(res, {
-            status: 403,
-            type: 'error',
-            message: 'ID mismatch with token.',
-        });
-    }
+    // if (isNaN(requestedUserId) || requestedUserId !== payload.id) {
+    //     return sendResponse(res, {
+    //         status: 403,
+    //         type: 'error',
+    //         message: 'ID mismatch with token.',
+    //     });
+    // }
 
     req.user = user;
     console.log("req.user.id : ",req.user.id);

@@ -14,14 +14,19 @@ const { sendResponse } = require("../utils/responseHandler");
 
 const createOrder = async (req, res) => {
   try {
-    const { userId, items } = req.body;
-    console.log("items : ", items);
+    const { items } = req.body;
+    const userId = req.user.id;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
     });
 
-    if (!user) return res.status(404).json({ message: "User not found." });
+    if (!user)
+      return sendResponse(res, {
+        status: 404,
+        type: "error",
+        message: "User not found.",
+      });
 
     let totalAmount = 0;
     const orderItems = await Promise.all(
@@ -40,8 +45,6 @@ const createOrder = async (req, res) => {
         };
       })
     );
-
-    console.log("totalAmount : ", totalAmount);
 
     const orderData = await prisma.order.create({
       data: {
@@ -71,24 +74,31 @@ const createOrder = async (req, res) => {
       },
     });
 
-    res.status(201).json({
-      success: true,
+    sendResponse(res, {
+      status: 201,
+      type: "success",
       message: "Order created successfully for summary.",
-      order: orderData,
+      data: orderData,
       totalAmount: totalAmount,
     });
   } catch (error) {
     console.error("Error creating temporary order:", error);
-    res.status(500).json({ message: "Internal server error." });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal server error while creating order.",
+    });
   }
 };
 
 const createPaymentIntent = async (req, res) => {
-  const { userId, totalAmount, currency = "usd" } = req.body;
+  const { totalAmount, currency = "usd" } = req.body;
+  const userId = req.user.id;
+  console.log("userId : ", userId, totalAmount, currency);
 
   try {
     console.log("start createPaymentIntent");
-    
+
     const customer = await stripe.customers.create({
       metadata: { userId: userId || "guest" },
     });
@@ -99,7 +109,7 @@ const createPaymentIntent = async (req, res) => {
       { apiVersion: "2024-12-18.acacia" }
     );
     console.log("step 2 createPaymentIntent");
-    
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalAmount * 100,
       currency: currency,
@@ -107,106 +117,51 @@ const createPaymentIntent = async (req, res) => {
       description: "ShopFlow Order Payment",
       metadata: { userId: userId || "guest" },
       automatic_payment_methods: {
-        enabled: true, 
+        enabled: true,
       },
     });
     console.log("step 3 createPaymentIntent");
 
-    res.status(200).json({
-      paymentIntent: paymentIntent.client_secret,
-      paymentIntentId:paymentIntent.id,
-      ephemeralKey: ephemeralKey.secret,
-      customer: customer.id,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
-      status: paymentIntent.status,
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    sendResponse(res, {
+      status: 200,
+      type: "success",
+      message: "payment Intent successfully created.",
+      data: {
+        paymentIntent: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        ephemeralKey: ephemeralKey.secret,
+        customer: customer.id,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: paymentIntent.status,
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      },
     });
     console.log("step 4 createPaymentIntent");
-
   } catch (error) {
     console.error("Error creating payment intent:", error.message);
-    res.status(500).send({ error: "Failed to create payment intent" });
-  }
-};
-
-const confirmPayment = async (req, res) => {
-  console.log("confirmPayment start");
-  
-  const { orderId, paymentIntentId, paymentMethodId } = req.body;
-
-
-  try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-  console.log("confirmPayment step 1");
-
-
-    if (paymentIntent.status === "succeeded") {
-      await prisma.orderedItem.updateMany({
-        where: {
-          orderId: parseInt(orderId),
-        },
-        data: {
-          paymentStatus: "COMPLETED",
-          orderStatus: "CONFIRMED",
-
-        },
-      });
-
-  console.log("confirmPayment step 2");
-
-
-      await prisma.order.update({
-        where: { id: parseInt(orderId) },
-        data: {
-          paymentStatus: "COMPLETED",
-          orderStatus: "CONFIRMED",
-        },
-      });
-
-  console.log("confirmPayment step 3");
-
-
-      const order = await prisma.order.findUnique({
-        where: { id: parseInt(orderId) },
-        include: {
-          items: true,
-        },
-      });
-  console.log("confirmPayment step 4");
-
-
-      const user = await prisma.user.findUnique({
-        where: { id: parseInt(order.userId) },
-      });
-      await emailService.orderUpdateEmail(user.email, order, "Placed");
-
-  console.log("confirmPayment step 5");
-
-
-      res.status(200).json({
-        success: true,
-        message: "Payment verified and order updated.",
-        order: order,
-      });
-    } else {
-      res
-        .status(400)
-        .send({ error: "Payment failed", status: paymentIntent.status });
-    }
-  } catch (error) {
-    console.error("Error confirming payment:", error.message);
-    res.status(500).send({ error: "Failed to confirm payment" });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal server error while create PaymentIntent.",
+    });
   }
 };
 
 const paymentMethodId = async (req, res) => {
   console.log("payment method id......!");
-  
+
   const { paymentIntentId } = req.query;
 
   if (!paymentIntentId) {
-    return res.status(400).json({ error: "Missing paymentIntentId in request" });
+    // return res
+    //   .status(400)
+    //   .json({ error: "Missing paymentIntentId in request" });
+    sendResponse(res, {
+      status:400,
+      type:"error",
+      messag:"Missing paymentIntentId in request.",
+    })
   }
 
   console.log("Received paymentIntentId:", paymentIntentId);
@@ -216,20 +171,118 @@ const paymentMethodId = async (req, res) => {
 
     const paymentMethodId = paymentIntent.payment_method;
 
-    res.status(200).json({ paymentMethodId });
+    // res.status(200).json({ paymentMethodId });
+    sendResponse(res, {
+      status:200,
+      type:"success",
+      message:"for payment method ID.",
+      data:paymentMethodId
+    })
   } catch (error) {
     console.error("Error retrieving payment intent:", error.message);
 
     if (error.type === "StripeInvalidRequestError") {
-      return res
-        .status(400)
-        .json({ error: "Invalid paymentIntentId or request parameters" });
+      // return res
+      //   .status(400)
+      //   .json({ error: "Invalid paymentIntentId or request parameters" });
+        sendResponse(res, {
+          status:400,
+          type:"error",
+          message:"Invalid paymentIntentId or request parameters",
+          error:error
+        })
     }
 
-    res.status(500).json({ error: "Failed to retrieve payment details" });
+    // res.status(500).json({ error: "Failed to retrieve payment details" });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal server error or Failed to retrieve payment details.",
+      error: error
+    });
   }
 };
 
+const confirmPayment = async (req, res) => {
+  console.log("confirmPayment start");
+
+  const { orderId, paymentIntentId, paymentMethodId } = req.body;
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    console.log("confirmPayment step 1");
+
+    if (paymentIntent.status === "succeeded") {
+      await prisma.orderedItem.updateMany({
+        where: {
+          orderId: parseInt(orderId),
+        },
+        data: {
+          paymentStatus: "COMPLETED",
+          orderStatus: "CONFIRMED",
+        },
+      });
+
+      console.log("confirmPayment step 2");
+
+      await prisma.order.update({
+        where: { id: parseInt(orderId) },
+        data: {
+          paymentStatus: "COMPLETED",
+          orderStatus: "CONFIRMED",
+        },
+      });
+
+      console.log("confirmPayment step 3");
+
+      const order = await prisma.order.findUnique({
+        where: { id: parseInt(orderId) },
+        include: {
+          items: true,
+        },
+      });
+      console.log("confirmPayment step 4");
+
+      const user = await prisma.user.findUnique({
+        where: { id: parseInt(order.userId) },
+      });
+      await emailService.orderUpdateEmail(user.email, order, "Placed");
+
+      console.log("confirmPayment step 5");
+
+      // res.status(200).json({
+      //   success: true,
+      //   message: "Payment verified and order updated.",
+      //   order: order,
+      // });
+      sendResponse(res, {
+        status:200,
+        type:"success",
+        message:"Payment verified and order updated",
+        data:order
+      })
+    } else {
+      // res
+      //   .status(400)
+      //   .send({ error: "Payment failed", status: paymentIntent.status });
+        sendResponse(res, {
+          status:400,
+          type:"success",
+          message:"Payment failed",
+          error:error
+        })
+    }
+  } catch (error) {
+    console.error("Error confirming payment:", error.message);
+    // res.status(500).send({ error: "Failed to confirm payment" });
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Failed to confirm payment.",
+      error: error
+    });
+  }
+};
 
 const checkoutOrder = async (req, res) => {
   try {
@@ -293,7 +346,6 @@ const verifyPaymentAndUpdateOrder = async (req, res) => {
   try {
     const { orderId, razorpayId, paymentId, paymentSignature } = req.query;
     console.log(orderId, razorpayId, paymentId, paymentSignature);
-    
 
     if (!orderId || !razorpayId || !paymentId || !paymentSignature) {
       return res.status(400).json({ message: "Missing required parameters." });
@@ -556,7 +608,7 @@ const getOrderByOrderId = async (req, res) => {
 };
 
 const getOrderForCheckout = async (req, res) => {
-  const {orderId} = req.query;
+  const { orderId } = req.query;
   if (!orderId || isNaN(orderId)) {
     return sendResponse(res, {
       status: 400,
@@ -564,7 +616,7 @@ const getOrderForCheckout = async (req, res) => {
       message: "Invalid or missing orderId.",
     });
   }
-  
+
   try {
     const orderData = await prisma.order.findUnique({
       where: {
@@ -578,39 +630,32 @@ const getOrderForCheckout = async (req, res) => {
         },
       },
     });
-    
-    
 
-    if(!orderData){
+    if (!orderData) {
       sendResponse(res, {
-        status:404,
+        status: 404,
         type: "error",
         message: "no order found..",
-      })
+      });
     }
 
-    console.log("orderData : ",orderData);
-
+    console.log("orderData : ", orderData);
 
     sendResponse(res, {
       status: 200,
       type: "success",
-      message :"order fetched successfully..",
-      data : orderData || "null",
-
-    })
-    
+      message: "order fetched successfully..",
+      data: orderData || "null",
+    });
   } catch (error) {
     console.error(error);
     sendResponse(res, {
-      status:500,
-      type:error,
-      message : "Error on getOrderForCheckout..",
-    })
-    
+      status: 500,
+      type: error,
+      message: "Error on getOrderForCheckout..",
+    });
   }
-}
-
+};
 
 module.exports = {
   createOrder,

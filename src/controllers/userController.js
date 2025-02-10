@@ -21,7 +21,7 @@ const s3 = new AWS.S3({
 
 const signup = async (req, res) => {
   try {
-    const { name, email, password, address, phone } = req.body;
+    const { name, email, password, phone } = req.body;
 
     const existingUser = await prisma.user.findUnique({
       where: {
@@ -31,7 +31,7 @@ const signup = async (req, res) => {
 
     if (existingUser) {
       return sendResponse(res, {
-        status: 400,
+        status: 409,
         type: "error",
         message: `User with email ${email} already exists.`,
         data: existingUser,
@@ -45,7 +45,6 @@ const signup = async (req, res) => {
         name: name,
         email: email,
         password: hashedPassword,
-        address: address,
         phone: phone,
       },
     });
@@ -58,6 +57,7 @@ const signup = async (req, res) => {
       message: "User created successfully.",
       data: userWithoutPassword,
     });
+
   } catch (error) {
     console.error(error.message);
     sendResponse(res, {
@@ -221,14 +221,10 @@ const userProfileInfo = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     let image = req.file;
-    console.log("image : ", image);
-
     const data = req.body;
     const userId  = req.user.id;
 
     const { name, phone } = data;
-    console.log("name : ", name);
-    console.log("phone : ", phone);
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
@@ -279,8 +275,6 @@ const updateUserProfile = async (req, res) => {
       },
     });
 
-    console.log("updatedUser : ", updatedUser);
-
     sendResponse(res, {
       status: 200,
       type: "success",
@@ -296,7 +290,7 @@ const updateUserProfile = async (req, res) => {
     sendResponse(res, {
       status: 500,
       type: "error",
-      message: "Internal Server Error",
+      message: "Internal Server Error in updateUserProfile",
       error: error,
     });
   }
@@ -312,10 +306,11 @@ const addAddress = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        status: "error",
-        message: "User not found.",
-      });
+      return sendResponse(res, {
+        status:404,
+        type:"error",
+        message:"User not found."
+      })
     }
 
     if (booleanValue) {
@@ -337,15 +332,18 @@ const addAddress = async (req, res) => {
       },
     });
 
-    res.status(201).json({
-      status: "success",
-      message: "Address added successfully.",
-    });
+    sendResponse(res,{
+        status:200,
+        type:"success",
+        message:"Add Address successfully completed."
+    })
   } catch (error) {
     console.error("Error adding address:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Internal Server Error",
+    sendResponse(res, {
+      status: 500,
+      type: "error",
+      message: "Internal Server Error in addAddress",
+      error: error,
     });
   }
 };
@@ -379,16 +377,19 @@ const makePrimaryAddress = async (req, res) => {
       data: { isPrimary: true },
     });
 
-    res.status(200).json({
-      status: "success",
+    sendResponse(res,{
+      status:200,
+      type:"success",
       message: "Address marked as primary successfully.",
-    });
+    })
   } catch (error) {
     console.error("Error making address primary:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Internal Server Error",
-    });
+
+    sendResponse(res, {
+      status:500,
+      type:"error",
+      message: "Internal Server Error in makePrimaryAddress",
+    })
   }
 };
 
@@ -428,7 +429,7 @@ const editAddress = async (req, res) => {
     sendResponse(res, {
       status:500,
       type: "error",
-      message: "Internal Server Error"
+      message: "Internal Server Error while editAddress."
     });
   };
 };

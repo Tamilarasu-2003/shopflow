@@ -13,10 +13,11 @@ const addOrRemoveItem = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        status: "error",
-        message: "User not found.",
-      });
+      return sendResponse(res, {
+        status:404,
+        type:"error",
+        message:"user not found.",
+      })
     }
 
     const product = await prisma.product.findUnique({
@@ -24,10 +25,11 @@ const addOrRemoveItem = async (req, res) => {
     });
 
     if (!product) {
-      return res.status(404).json({
-        status: "error",
-        message: "Product not found.",
-      });
+      sendResponse(res, {
+        status:404,
+        type:"error",
+        message:"Product not found.",
+      })
     }
 
     let wishlist = await prisma.wishlist.findUnique({
@@ -42,9 +44,6 @@ const addOrRemoveItem = async (req, res) => {
       },
     });
 
-    console.log(wishlist);
-    
-
     if (!wishlist) {
       wishlist = await prisma.wishlist.create({
         data: {
@@ -55,11 +54,17 @@ const addOrRemoveItem = async (req, res) => {
         },
         include: { products: true },
       });
-      return res.status(201).json({
-        status: "success",
+      // return res.status(201).json({
+      //   status: "success",
+      //   message: "Product added to wishlist.",
+      //   data: wishlist,
+      // });
+      sendResponse(res, {
+        status:201,
+        type:"success",
         message: "Product added to wishlist.",
-        data: wishlist,
-      });
+        data:wishlist,
+      })
     }
 
     const productInWishlist = wishlist.products.find(
@@ -70,10 +75,15 @@ const addOrRemoveItem = async (req, res) => {
       await prisma.wishlistProduct.delete({
         where: { id: productInWishlist.id },
       });
-      return res.status(200).json({
-        status: "success",
-        message: "Product removed from wishlist.",
-      });
+      // return res.status(200).json({
+      //   status: "success",
+      //   message: "Product removed from wishlist.",
+      // });
+      sendResponse(res, {
+        status:200,
+        type:"success",
+        message:"Product removed from wishlist.",
+      })
     } else {
       await prisma.wishlistProduct.create({
         data: {
@@ -81,17 +91,27 @@ const addOrRemoveItem = async (req, res) => {
           productId: parseInt(productId),
         },
       });
-      return res.status(200).json({
-        status: "success",
-        message: "Product added to wishlist.",
-      });
+      // return res.status(200).json({
+      //   status: "success",
+      //   message: "Product added to wishlist.",
+      // });
+      sendResponse(res, {
+        status:200,
+        type:"success",
+        message:"Product added to wishlist.",
+      })
     }
   } catch (error) {
     console.error("Error handling wishlist:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Internal server error.",
-    });
+    // res.status(500).json({
+    //   status: "error",
+    //   message: "Internal server error.",
+    // });
+    sendResponse(res, {
+      status:500,
+      type:"error",
+      message:"Internal server error in wishlist"
+    })
   }
 };
 
@@ -139,10 +159,15 @@ const viewWishlist = async (req, res) => {
     });
   } catch (error) {
     console.error("Error handling wishlist:", error);
-    res.status(500).json({
-      status: "error",
-      message: "Internal server error.",
-    });
+    // res.status(500).json({
+    //   status: "error",
+    //   message: "Internal server error.",
+    // });
+    sendResponse(res, {
+      status:500,
+      type:"error",
+      message:"Internal server error in view Wishlist."
+    })
   }
 };
 
